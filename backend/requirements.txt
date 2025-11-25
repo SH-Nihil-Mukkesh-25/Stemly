@@ -1,0 +1,20 @@
+# FastAPI framework
+fastapi
+
+# ASGI server
+uvicorn[standard]
+
+# Google Gemini API (Vision + Text)
+google-generativeai
+
+# Environment variables loader
+python-dotenv
+
+# Image handling (FastAPI-compatible)
+python-multipart
+
+# To avoid any missing typing stubs
+pydantic
+
+# Optional: helpful utilities
+requests
