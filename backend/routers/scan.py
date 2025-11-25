@@ -36,3 +36,8 @@ async def upload_scan(
 @router.get("/history/{user_id}")
 def history(user_id: str):
     return {"history": get_user_history(user_id)}
+
+
+@router.get("/ping")
+def ping():
+    return {"message": "Backend Connected Successfully!"}
