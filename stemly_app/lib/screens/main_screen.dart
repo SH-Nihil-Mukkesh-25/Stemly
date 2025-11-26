@@ -3,7 +3,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
+
 import '../widgets/bottom_nav_bar.dart';
+import '../storage/history_store.dart';
+import '../models/scan_history.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -17,17 +20,15 @@ class _MainScreenState extends State<MainScreen> {
   bool loading = false;
 
   String? topic;
-  List<dynamic>? variables;
+  List<String>? variables;
   String? errorMessage;
 
   final String serverIp = "http://10.0.2.2:8000";
-
 
   Future<void> _openCamera() async {
     try {
       final XFile? photo = await _picker.pickImage(source: ImageSource.camera);
       if (photo == null) return;
-
       await _uploadImage(File(photo.path));
     } catch (e) {
       print("Camera error: $e");
@@ -55,23 +56,27 @@ class _MainScreenState extends State<MainScreen> {
 
       final streamedResponse = await request.send();
       final responseBody = await streamedResponse.stream.bytesToString();
-
-      print("Raw Backend Response: $responseBody");
-
       final jsonResponse = json.decode(responseBody);
 
       setState(() {
         loading = false;
         topic = jsonResponse["topic"]?.toString() ?? "Unknown";
-        variables = jsonResponse["variables"] ?? [];
+        variables = List<String>.from(jsonResponse["variables"] ?? []);
       });
 
+      HistoryStore.add(
+        ScanHistory(
+          topic: topic!,
+          variables: variables!,
+          imagePath: imageFile.path,
+          timestamp: DateTime.now(),
+        ),
+      );
     } catch (e) {
       setState(() {
         loading = false;
         errorMessage = "Error: $e";
       });
-      print("Upload Error: $e");
     }
   }
 
@@ -88,17 +93,15 @@ class _MainScreenState extends State<MainScreen> {
                     ? Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text("Topic:",
-                              style: const TextStyle(
+                          const Text("Topic:",
+                              style: TextStyle(
                                   fontSize: 22, fontWeight: FontWeight.bold)),
                           Text(topic!,
-                              style: const TextStyle(
-                                  fontSize: 20, color: Colors.blue)),
-
+                              style:
+                                  const TextStyle(fontSize: 20, color: Colors.blue)),
                           const SizedBox(height: 20),
-
-                          Text("Variables:",
-                              style: const TextStyle(
+                          const Text("Variables:",
+                              style: TextStyle(
                                   fontSize: 20, fontWeight: FontWeight.bold)),
                           Text(
                             variables!.join(", "),
