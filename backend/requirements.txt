@@ -1,7 +1,5 @@
-# FastAPI framework
+# FastAPI framework & ASGI server
 fastapi
-
-# ASGI server
 uvicorn[standard]
 
 # Google Gemini API (Vision + Text)
@@ -10,11 +8,15 @@ google-generativeai
 # Environment variables loader
 python-dotenv
 
-# Image handling (FastAPI-compatible)
+# Image handling (FastAPI-compatible uploads)
 python-multipart
 
-# To avoid any missing typing stubs
+# Data validation / models (used by FastAPI)
 pydantic
+
+# LangChain core + Google Gemini integration (used in ai_notes)
+langchain
+langchain-google-genai
 
 # Optional: helpful utilities
 requests
