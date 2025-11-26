@@ -21,6 +21,7 @@ class ScanResultScreen extends StatefulWidget {
 
 class _ScanResultScreenState extends State<ScanResultScreen> {
   final Map<String, bool> expanded = {};
+  static const deepBlue = Color(0xFF003A70); // DARK BLUE TEXT
 
   @override
   void initState() {
@@ -32,7 +33,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const primaryColor = Color.fromARGB(255, 10, 79, 143);
+    const primaryColor = Color(0xFFD8ECFF); // light blue
     const cardColor = Colors.white;
     const background = Color(0xFFF3F7FA);
 
@@ -40,37 +41,88 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       length: 2,
       child: Scaffold(
         backgroundColor: background,
+
+        // ---------------- APP BAR ----------------
         appBar: AppBar(
           backgroundColor: primaryColor,
-          elevation: 2,
+          elevation: 0,
+
+          // DARK BLUE BACK BUTTON + TITLE
+          iconTheme: const IconThemeData(color: deepBlue),
           title: const Text(
             "Scan Result",
-            style: TextStyle(color: Colors.white),
+            style: TextStyle(
+              color: deepBlue,
+              fontWeight: FontWeight.w600,
+              fontSize: 20,
+            ),
           ),
-          bottom: const TabBar(
-            indicatorColor: Colors.white,
-            tabs: [
-              Tab(text: "AI Visualiser"),
-              Tab(text: "AI Notes"),
-            ],
+
+          // ---------------- TAB BAR ----------------
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(55),
+            child: Container(
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 14),
+              child: Container(
+                decoration: BoxDecoration(
+                  // White → changed to dark-blue translucent
+                  color: deepBlue.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: TabBar(
+                  dividerColor: Colors.transparent,
+
+                  // INDICATOR → changed from white to deep blue
+                  indicator: BoxDecoration(
+                    color: deepBlue,
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+
+                  indicatorSize: TabBarIndicatorSize.tab,
+
+                  // Selected = light blue text for contrast
+                  labelColor: primaryColor,
+
+                  // Unselected = deep blue text
+                  unselectedLabelColor: deepBlue,
+
+                  labelStyle: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                  unselectedLabelStyle: const TextStyle(
+                    fontSize: 14,
+                  ),
+
+                  tabs: const [
+                    Tab(text: "AI Visualiser"),
+                    Tab(text: "AI Notes"),
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
+
         body: TabBarView(
           children: [
-            _visualiser(primaryColor),
-            _notes(primaryColor, cardColor),
+            _visualiser(),
+            _notes(cardColor),
           ],
         ),
       ),
     );
   }
 
-  Widget _visualiser(Color primaryColor) {
+  // ---------------- VISUALISER TAB ----------------
+  Widget _visualiser() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // IMAGE CARD
           Container(
             height: 260,
             width: double.infinity,
@@ -78,9 +130,10 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
               borderRadius: BorderRadius.circular(18),
               boxShadow: [
                 BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4))
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
               ],
             ),
             child: ClipRRect(
@@ -93,18 +146,19 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
           ),
           const SizedBox(height: 28),
 
-          _title("Topic", primaryColor),
+          _title("Topic"),
           _value(widget.topic),
           const SizedBox(height: 24),
 
-          _title("Variables", primaryColor),
+          _title("Variables"),
           _value(widget.variables.join(", ")),
         ],
       ),
     );
   }
 
-  Widget _notes(Color primaryColor, Color cardColor) {
+  // ---------------- NOTES TAB ----------------
+  Widget _notes(Color cardColor) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -122,39 +176,39 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
             },
             child: _buildContent(value),
             cardColor: cardColor,
-            primaryColor: primaryColor,
           );
         }).toList(),
       ),
     );
   }
 
+  // ---------------- EXPANDABLE CARD ----------------
   Widget _expandableCard({
     required String title,
     required bool expanded,
     required VoidCallback onTap,
     required Widget child,
     required Color cardColor,
-    required Color primaryColor,
   }) {
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 250),
+      duration: const Duration(milliseconds: 260),
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: cardColor,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.06),
-              blurRadius: 8,
-              offset: const Offset(0, 4))
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Column(
         children: [
           InkWell(
+            borderRadius: BorderRadius.circular(18),
             onTap: onTap,
-            borderRadius: BorderRadius.circular(16),
             child: Padding(
               padding:
                   const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
@@ -163,9 +217,9 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                 children: [
                   Text(
                     title,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 18,
-                      color: primaryColor,
+                      color: deepBlue,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -174,21 +228,20 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                         ? Icons.keyboard_arrow_up_rounded
                         : Icons.keyboard_arrow_down_rounded,
                     size: 30,
-                    color: primaryColor,
+                    color: deepBlue,
                   ),
                 ],
               ),
             ),
           ),
+
           AnimatedCrossFade(
-            duration: const Duration(milliseconds: 250),
-            crossFadeState: expanded
-                ? CrossFadeState.showSecond
-                : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 260),
+            crossFadeState:
+                expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
             firstChild: const SizedBox.shrink(),
             secondChild: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               child: child,
             ),
           ),
@@ -197,52 +250,72 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
     );
   }
 
+  // ---------------- CONTENT BUILDER ----------------
   Widget _buildContent(dynamic value) {
     if (value is String) {
-      return Text(value, style: const TextStyle(fontSize: 15));
+      return Text(
+        value,
+        style: const TextStyle(fontSize: 15, color: deepBlue),
+      );
     }
+
     if (value is List) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: value
-            .map((e) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text("• $e",
-                      style: const TextStyle(fontSize: 15)),
-                ))
+            .map(
+              (e) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  "• $e",
+                  style: const TextStyle(fontSize: 15, color: deepBlue),
+                ),
+              ),
+            )
             .toList(),
       );
     }
+
     if (value is Map) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: value.entries
-            .map((e) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text("${e.key}: ${e.value}",
-                      style: const TextStyle(fontSize: 15)),
-                ))
+            .map(
+              (e) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  "${e.key}: ${e.value}",
+                  style: const TextStyle(fontSize: 15, color: deepBlue),
+                ),
+              ),
+            )
             .toList(),
       );
     }
+
     return const Text("Unsupported format");
   }
 
-  Widget _title(String text, Color color) {
+  // ---------------- TITLE & VALUE ----------------
+  Widget _title(String text) {
     return Text(
       text,
-      style: TextStyle(
-        fontSize: 20,
+      style: const TextStyle(
+        fontSize: 22,
         fontWeight: FontWeight.w700,
-        color: color,
+        color: deepBlue,
       ),
     );
   }
 
   Widget _value(String text) {
-    return Text(text, style: const TextStyle(fontSize: 17));
+    return Text(
+      text,
+      style: const TextStyle(fontSize: 17, color: deepBlue),
+    );
   }
 
+  // ---------------- FORMAT CLEAN KEY ----------------
   String _formatKey(String raw) {
     return raw
         .replaceAll("_", " ")

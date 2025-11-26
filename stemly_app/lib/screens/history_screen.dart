@@ -21,9 +21,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   void _cleanupOldHistory() {
     final list = HistoryStore.history;
     if (list.length > 20) {
-      HistoryStore.setHistory(
-        list.sublist(list.length - 20),
-      );
+      HistoryStore.setHistory(list.sublist(list.length - 20));
     }
   }
 
@@ -38,13 +36,25 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget build(BuildContext context) {
     final history = HistoryStore.history;
 
+    const deepBlue = Color(0xFF003A70);
+    const blueShade = Color(0xFF60ABF1);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
+
+      // ---------------- APP BAR ----------------
       appBar: AppBar(
-        title: const Text("Scan History"),
+        title: const Text(
+          "Scan History",
+          style: TextStyle(
+            color: deepBlue,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         centerTitle: true,
         backgroundColor: Colors.white,
         elevation: 0.5,
+
         actions: [
           TextButton(
             onPressed: _clearNonStarred,
@@ -55,6 +65,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
         ],
       ),
+
+      // ---------------- BODY ----------------
       body: history.isEmpty
           ? const Center(
               child: Text(
@@ -87,8 +99,37 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   },
 
                   onDismissed: (_) {
-                    HistoryStore.remove(h);
+                    final removed = h;
+                    final removedIndex = index;
+
+                    HistoryStore.remove(removed);
                     setState(() {});
+
+                    final messenger = ScaffoldMessenger.of(context);
+
+                    messenger.hideCurrentSnackBar();
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text("Deleted '${removed.topic}'"),
+                        duration: const Duration(seconds: 5),
+
+                        // 🔵 Blue UI shade for UNDO
+                        action: SnackBarAction(
+                          label: "UNDO",
+                          textColor: blueShade,
+                          onPressed: () {
+                            HistoryStore.history.insert(removedIndex, removed);
+                            HistoryStore.setHistory(HistoryStore.history);
+                            setState(() {});
+                          },
+                        ),
+                      ),
+                    );
+
+                    // Auto-hide after 5 seconds
+                    Future.delayed(const Duration(seconds: 5), () {
+                      if (mounted) messenger.hideCurrentSnackBar();
+                    });
                   },
 
                   child: GestureDetector(
@@ -105,10 +146,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 );
               },
             ),
+
       bottomNavigationBar: const BottomNavBar(currentIndex: 1),
     );
   }
 
+  // ---------------- DELETE BACKGROUND ----------------
   Widget _deleteBg({required bool left}) {
     return Container(
       color: Colors.red,
@@ -118,7 +161,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
+  // ---------------- HISTORY CARD ----------------
   Widget _historyCard(h) {
+    const deepBlue = Color(0xFF003A70);
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       padding: const EdgeInsets.all(16),
@@ -133,15 +179,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
         ],
       ),
+
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Thumbnail 
+          // THUMBNAIL
           Container(
             height: 56,
             width: 56,
             decoration: BoxDecoration(
-              color: const Color(0xFF003A70),
+              color: deepBlue,
               shape: BoxShape.circle,
             ),
             child: ClipOval(
@@ -154,6 +201,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
           const SizedBox(width: 14),
 
+          // TEXT CONTENT
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -165,7 +213,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF003A70),
+                    color: deepBlue,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -182,6 +230,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ),
           ),
 
+          // ⭐ STAR ICON (YELLOW)
           IconButton(
             icon: Icon(
               h.isStarred ? Icons.star : Icons.star_border,

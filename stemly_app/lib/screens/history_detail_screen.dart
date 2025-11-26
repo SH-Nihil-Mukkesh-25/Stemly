@@ -14,6 +14,8 @@ class HistoryDetailScreen extends StatefulWidget {
 
 class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
   final Map<String, bool> expanded = {};
+  static const deepBlue = Color(0xFF003A70);     // DARK BLUE TEXT
+  static const lightBlue = Color(0xFFD8ECFF);    // LIGHT BLUE ACCENT
 
   @override
   void initState() {
@@ -27,109 +29,153 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
   Widget build(BuildContext context) {
     final h = widget.history;
 
-    const primaryColor = Color(0xFF0A3D62);
-    const cardColor = Colors.white;
     const background = Color(0xFFF3F7FA);
+    const cardColor = Colors.white;
 
     return DefaultTabController(
       length: 2,
       child: Scaffold(
         backgroundColor: background,
+
+        // ---------------- APP BAR ----------------
         appBar: AppBar(
-          backgroundColor: primaryColor,
-          elevation: 2,
+          backgroundColor: lightBlue,
+          elevation: 0,
+
+          iconTheme: const IconThemeData(color: deepBlue),
+
           title: const Text(
             "Scan Details",
-            style: TextStyle(color: Colors.white),
+            style: TextStyle(
+              color: deepBlue,
+              fontWeight: FontWeight.w600,
+              fontSize: 20,
+            ),
           ),
+
           actions: [
             IconButton(
               icon: Icon(
                 h.isStarred ? Icons.star : Icons.star_border,
                 color: Colors.amber,
+                size: 28,
               ),
               onPressed: () {
                 setState(() {
                   h.isStarred = !h.isStarred;
                 });
               },
-            )
+            ),
           ],
-          bottom: const TabBar(
-            indicatorColor: Colors.white,
-            tabs: [
-              Tab(text: "AI Visualiser"),
-              Tab(text: "AI Notes"),
-            ],
+
+          // ---------------- TAB BAR ----------------
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(55),
+            child: Container(
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 14),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: deepBlue.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: TabBar(
+                  dividerColor: Colors.transparent,
+
+                  indicator: BoxDecoration(
+                    color: deepBlue,
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+
+                  indicatorSize: TabBarIndicatorSize.tab,
+
+                  labelColor: lightBlue,       // active tab text
+                  unselectedLabelColor: deepBlue,
+
+                  labelStyle: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+
+                  unselectedLabelStyle: const TextStyle(
+                    fontSize: 14,
+                  ),
+
+                  tabs: const [
+                    Tab(text: "AI Visualiser"),
+                    Tab(text: "AI Notes"),
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
 
+        // ---------------- BODY ----------------
         body: TabBarView(
           children: [
-            _visualiser(h, primaryColor),
-            _notes(h, primaryColor, cardColor),
+            _visualiser(h),
+            _notes(h, cardColor),
           ],
         ),
       ),
     );
   }
 
-  Widget _visualiser(ScanHistory h, Color primaryColor) {
+  // ---------------- VISUALISER TAB ----------------
+  Widget _visualiser(ScanHistory h) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(22),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // IMAGE
           Container(
-            height: 260,
-            width: double.infinity,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(18),
               boxShadow: [
                 BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4))
+                  color: Colors.black.withOpacity(0.10),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
               ],
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(18),
               child: Image.file(
                 File(h.imagePath),
+                height: 260,
+                width: double.infinity,
                 fit: BoxFit.cover,
               ),
             ),
           ),
-          const SizedBox(height: 28),
 
-          Text("Topic",
-              style: TextStyle(
-                  fontSize: 22, fontWeight: FontWeight.bold, color: primaryColor)),
-          Text(h.topic, style: const TextStyle(fontSize: 17)),
+          const SizedBox(height: 30),
+
+          _title("Topic"),
+          _value(h.topic),
           const SizedBox(height: 20),
 
-          Text("Variables",
-              style: TextStyle(
-                  fontSize: 22, fontWeight: FontWeight.bold, color: primaryColor)),
-          Text(h.variables.join(", "), style: const TextStyle(fontSize: 17)),
+          _title("Variables"),
+          _value(h.variables.join(", ")),
           const SizedBox(height: 20),
 
-          Text("Scanned At",
-              style: TextStyle(
-                  fontSize: 22, fontWeight: FontWeight.bold, color: primaryColor)),
-          Text(
+          _title("Scanned At"),
+          _value(
             "${h.timestamp.day}/${h.timestamp.month}/${h.timestamp.year}  "
             "${h.timestamp.hour}:${h.timestamp.minute.toString().padLeft(2, '0')}",
-            style: const TextStyle(fontSize: 17),
           ),
         ],
       ),
     );
   }
 
-  Widget _notes(ScanHistory h, Color primaryColor, Color cardColor) {
+  // ---------------- NOTES TAB ----------------
+  Widget _notes(ScanHistory h, Color cardColor) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       child: Column(
         children: h.notesJson.entries.map((entry) {
           final key = entry.key;
@@ -145,69 +191,69 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
             },
             child: _buildContent(value),
             cardColor: cardColor,
-            primaryColor: primaryColor,
           );
         }).toList(),
       ),
     );
   }
 
+  // ---------------- EXPANDABLE CARD ----------------
   Widget _expandableCard({
     required String title,
     required bool expanded,
     required VoidCallback onTap,
     required Widget child,
     required Color cardColor,
-    required Color primaryColor,
   }) {
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 250),
+      duration: const Duration(milliseconds: 260),
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: cardColor,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.06),
-              blurRadius: 8,
-              offset: const Offset(0, 4))
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Column(
         children: [
           InkWell(
+            borderRadius: BorderRadius.circular(18),
             onTap: onTap,
             child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(title,
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: primaryColor,
-                        fontWeight: FontWeight.w700,
-                      )),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      color: deepBlue,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                   Icon(
-                    expanded
-                        ? Icons.keyboard_arrow_up
-                        : Icons.keyboard_arrow_down,
+                    expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
                     size: 28,
-                    color: primaryColor,
+                    color: deepBlue,
                   ),
                 ],
               ),
             ),
           ),
+
           AnimatedCrossFade(
-            duration: const Duration(milliseconds: 250),
+            duration: const Duration(milliseconds: 260),
             crossFadeState:
                 expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
             firstChild: const SizedBox.shrink(),
             secondChild: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               child: child,
             ),
           ),
@@ -216,40 +262,65 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     );
   }
 
+  // ---------------- CONTENT BUILDER ----------------
   Widget _buildContent(dynamic value) {
     if (value is String) {
-      return Text(value, style: const TextStyle(fontSize: 15));
+      return Text(
+        value,
+        style: const TextStyle(fontSize: 15, color: deepBlue),
+      );
     }
+
     if (value is List) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: value
             .map((e) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text("• $e", style: const TextStyle(fontSize: 15)),
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text("• $e", style: const TextStyle(fontSize: 15, color: deepBlue)),
                 ))
             .toList(),
       );
     }
+
     if (value is Map) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: value.entries
             .map((e) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.only(bottom: 6),
                   child: Text("${e.key}: ${e.value}",
-                      style: const TextStyle(fontSize: 15)),
+                      style: const TextStyle(fontSize: 15, color: deepBlue)),
                 ))
             .toList(),
       );
     }
+
     return const Text("Unsupported format");
   }
 
+  // ---------------- TITLE ----------------
+  Widget _title(String text) {
+    return Text(
+      text,
+      style: const TextStyle(
+        fontSize: 22,
+        fontWeight: FontWeight.bold,
+        color: deepBlue,
+      ),
+    );
+  }
+
+  // ---------------- VALUE ----------------
+  Widget _value(String text) {
+    return Text(
+      text,
+      style: const TextStyle(fontSize: 17, color: deepBlue),
+    );
+  }
+
+  // ---------------- KEY FORMATTER ----------------
   String _formatKey(String raw) {
-    return raw
-        .replaceAll("_", " ")
-        .trim()
-        .replaceFirst(raw[0], raw[0].toUpperCase());
+    return raw.replaceAll("_", " ").trim().replaceFirst(raw[0], raw[0].toUpperCase());
   }
 }
