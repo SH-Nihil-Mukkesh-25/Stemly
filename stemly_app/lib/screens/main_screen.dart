@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import '../widgets/bottom_nav_bar.dart';
 import '../storage/history_store.dart';
 import '../models/scan_history.dart';
+import 'scan_result_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -19,30 +20,24 @@ class _MainScreenState extends State<MainScreen> {
   final ImagePicker _picker = ImagePicker();
   bool loading = false;
 
-  String? topic;
-  List<String>? variables;
-  String? errorMessage;
-
   final String serverIp = "http://10.0.2.2:8000";
 
   Future<void> _openCamera() async {
     try {
       final XFile? photo = await _picker.pickImage(source: ImageSource.camera);
       if (photo == null) return;
+
+      // show animation overlay
+      setState(() => loading = true);
+
       await _uploadImage(File(photo.path));
     } catch (e) {
       print("Camera error: $e");
+      setState(() => loading = false);
     }
   }
 
   Future<void> _uploadImage(File imageFile) async {
-    setState(() {
-      loading = true;
-      topic = null;
-      variables = null;
-      errorMessage = null;
-    });
-
     try {
       final uri = Uri.parse("$serverIp/scan/upload");
 
@@ -51,71 +46,156 @@ class _MainScreenState extends State<MainScreen> {
         ..files.add(await http.MultipartFile.fromPath(
           "file",
           imageFile.path,
-          filename: imageFile.path.split("/").last,
         ));
 
       final streamedResponse = await request.send();
       final responseBody = await streamedResponse.stream.bytesToString();
       final jsonResponse = json.decode(responseBody);
 
-      setState(() {
-        loading = false;
-        topic = jsonResponse["topic"]?.toString() ?? "Unknown";
-        variables = List<String>.from(jsonResponse["variables"] ?? []);
-      });
+      String topic = jsonResponse["topic"] ?? "Unknown";
+      List<String> variables =
+          List<String>.from(jsonResponse["variables"] ?? []);
 
+      // Store in history
       HistoryStore.add(
         ScanHistory(
-          topic: topic!,
-          variables: variables!,
+          topic: topic,
+          variables: variables,
           imagePath: imageFile.path,
           timestamp: DateTime.now(),
         ),
       );
+
+      // hide overlay
+      setState(() => loading = false);
+
+      // navigate to result screen
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ScanResultScreen(
+            topic: topic,
+            variables: variables,
+          ),
+        ),
+      );
     } catch (e) {
-      setState(() {
-        loading = false;
-        errorMessage = "Error: $e";
-      });
+      setState(() => loading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        _buildMainUI(),
+
+        // --- ANALYZING OVERLAY ---
+        if (loading)
+          Container(
+            color: Colors.black54,
+            child: const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(color: Colors.white),
+                  SizedBox(height: 20),
+                  Text(
+                    "Analyzing Image...",
+                    style: TextStyle(color: Colors.white, fontSize: 18),
+                  )
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildMainUI() {
     return Scaffold(
-      appBar: AppBar(title: const Text("Scan Result")),
-      body: Center(
-        child: loading
-            ? const CircularProgressIndicator()
-            : errorMessage != null
-                ? Text(errorMessage!, style: const TextStyle(color: Colors.red))
-                : topic != null
-                    ? Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text("Topic:",
-                              style: TextStyle(
-                                  fontSize: 22, fontWeight: FontWeight.bold)),
-                          Text(topic!,
-                              style:
-                                  const TextStyle(fontSize: 20, color: Colors.blue)),
-                          const SizedBox(height: 20),
-                          const Text("Variables:",
-                              style: TextStyle(
-                                  fontSize: 20, fontWeight: FontWeight.bold)),
-                          Text(
-                            variables!.join(", "),
-                            style: const TextStyle(fontSize: 18),
-                          ),
-                        ],
-                      )
-                    : const Text("Tap the camera button to scan"),
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        foregroundColor: Colors.black,
+        leading: IconButton(
+          onPressed: () {},
+          icon: const Icon(Icons.arrow_back_ios),
+        ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _openCamera,
-        child: const Icon(Icons.camera_alt),
+
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 22),
+          child: Column(
+            children: [
+              const SizedBox(height: 20),
+              const Text(
+                "STEM Quest",
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 26),
+              const Text(
+                "Scan → Get Mission →\nLearn Visually",
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16, color: Colors.black54),
+              ),
+              const SizedBox(height: 40),
+
+              _scanBox(),
+
+              const SizedBox(height: 50),
+            ],
+          ),
+        ),
       ),
+
       bottomNavigationBar: const BottomNavBar(currentIndex: 0),
+    );
+  }
+
+  Widget _scanBox() {
+    return Center(
+      child: SizedBox(
+        width: MediaQuery.of(context).size.width * 0.65,
+        child: AspectRatio(
+          aspectRatio: 1,
+          child: GestureDetector(
+            onTap: _openCamera,
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFD8ECFF),
+                borderRadius: BorderRadius.circular(22),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  // camera icon
+                  CircleAvatar(
+                    radius: 45,
+                    backgroundColor: Color(0xFF003A70),
+                    child: Icon(Icons.camera_alt,
+                        color: Colors.white, size: 60),
+                  ),
+                  SizedBox(height: 18),
+                  Text(
+                    "Scan to Learn",
+                    style: TextStyle(
+                      fontSize: 20,
+                      color: Color(0xFF003A70),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  )
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
