@@ -26,13 +26,9 @@ class _MainScreenState extends State<MainScreen> {
     try {
       final XFile? photo = await _picker.pickImage(source: ImageSource.camera);
       if (photo == null) return;
-
-      // show animation overlay
       setState(() => loading = true);
-
       await _uploadImage(File(photo.path));
     } catch (e) {
-      print("Camera error: $e");
       setState(() => loading = false);
     }
   }
@@ -43,39 +39,37 @@ class _MainScreenState extends State<MainScreen> {
 
       final request = http.MultipartRequest("POST", uri)
         ..fields['user_id'] = "user123"
-        ..files.add(await http.MultipartFile.fromPath(
-          "file",
-          imageFile.path,
-        ));
+        ..files.add(await http.MultipartFile.fromPath("file", imageFile.path));
 
       final streamedResponse = await request.send();
       final responseBody = await streamedResponse.stream.bytesToString();
       final jsonResponse = json.decode(responseBody);
 
       String topic = jsonResponse["topic"] ?? "Unknown";
-      List<String> variables =
-          List<String>.from(jsonResponse["variables"] ?? []);
+      List<String> variables = List<String>.from(jsonResponse["variables"] ?? []);
 
-      // Store in history
+      final notes = await _fetchNotes(topic, variables);
+
       HistoryStore.add(
         ScanHistory(
           topic: topic,
           variables: variables,
           imagePath: imageFile.path,
+          notesJson: notes,
           timestamp: DateTime.now(),
         ),
       );
 
-      // hide overlay
       setState(() => loading = false);
 
-      // navigate to result screen
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => ScanResultScreen(
             topic: topic,
             variables: variables,
+            notesJson: notes,
+            imagePath: imageFile.path,
           ),
         ),
       );
@@ -84,13 +78,27 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
+  Future<Map<String, dynamic>> _fetchNotes(
+      String topic, List<String> variables) async {
+    final uri = Uri.parse("$serverIp/scan/notes");
+
+    final response = await http.post(
+      uri,
+      headers: {"Content-Type": "application/json"},
+      body: json.encode({
+        "topic": topic,
+        "variables": variables,
+      }),
+    );
+
+    return json.decode(response.body);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
         _buildMainUI(),
-
-        // --- ANALYZING OVERLAY ---
         if (loading)
           Container(
             color: Colors.black54,
@@ -116,15 +124,11 @@ class _MainScreenState extends State<MainScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: Colors.white,
         elevation: 0,
         foregroundColor: Colors.black,
-        leading: IconButton(
-          onPressed: () {},
-          icon: const Icon(Icons.arrow_back_ios),
-        ),
       ),
-
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 22),
@@ -133,10 +137,7 @@ class _MainScreenState extends State<MainScreen> {
               const SizedBox(height: 20),
               const Text(
                 "STEM Quest",
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                ),
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 26),
               const Text(
@@ -145,15 +146,12 @@ class _MainScreenState extends State<MainScreen> {
                 style: TextStyle(fontSize: 16, color: Colors.black54),
               ),
               const SizedBox(height: 40),
-
               _scanBox(),
-
               const SizedBox(height: 50),
             ],
           ),
         ),
       ),
-
       bottomNavigationBar: const BottomNavBar(currentIndex: 0),
     );
   }
@@ -174,12 +172,10 @@ class _MainScreenState extends State<MainScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: const [
-                  // camera icon
                   CircleAvatar(
                     radius: 45,
                     backgroundColor: Color(0xFF003A70),
-                    child: Icon(Icons.camera_alt,
-                        color: Colors.white, size: 60),
+                    child: Icon(Icons.camera_alt, color: Colors.white, size: 60),
                   ),
                   SizedBox(height: 18),
                   Text(
