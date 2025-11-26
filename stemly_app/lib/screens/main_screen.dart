@@ -136,7 +136,7 @@ class _MainScreenState extends State<MainScreen> {
             children: [
               const SizedBox(height: 20),
               const Text(
-                "STEM Quest",
+                "STEMLY",
                 style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 26),
