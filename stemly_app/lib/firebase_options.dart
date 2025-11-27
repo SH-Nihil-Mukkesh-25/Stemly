@@ -25,6 +25,21 @@ class DefaultFirebaseOptions {
     }
   }
 
+  /// Validates that Firebase options are not placeholder values.
+  static bool get isValid {
+    try {
+      final options = currentPlatform;
+      return options.apiKey.isNotEmpty &&
+          options.apiKey != "ANDROID_API_KEY" &&
+          options.appId.isNotEmpty &&
+          options.appId != "ANDROID_APP_ID" &&
+          options.projectId.isNotEmpty &&
+          options.projectId != "PROJECT_ID";
+    } catch (_) {
+      return false;
+    }
+  }
+
   static const FirebaseOptions _android = FirebaseOptions(
     apiKey: "ANDROID_API_KEY",
     appId: "ANDROID_APP_ID",

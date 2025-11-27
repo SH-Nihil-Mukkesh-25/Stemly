@@ -18,22 +18,72 @@ import 'screens/terms_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  
+  try {
+    // Validate Firebase configuration before initializing
+    if (!DefaultFirebaseOptions.isValid) {
+      debugPrint(
+        "⚠️ WARNING: Firebase is using placeholder values!\n"
+        "Please run: flutter pub global activate flutterfire_cli && flutterfire configure"
+      );
+    }
+    
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
 
-  final authService = FirebaseAuthService();
-  await authService.initialize();
+    final authService = FirebaseAuthService();
+    await authService.initialize();
 
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => ThemeProvider()),
-        ChangeNotifierProvider<FirebaseAuthService>.value(value: authService),
-      ],
-      child: const MyApp(),
-    ),
-  );
+    runApp(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => ThemeProvider()),
+          ChangeNotifierProvider<FirebaseAuthService>.value(value: authService),
+        ],
+        child: const MyApp(),
+      ),
+    );
+  } catch (e, stackTrace) {
+    debugPrint("❌ Firebase initialization failed: $e");
+    debugPrintStack(stackTrace: stackTrace);
+    // Still run the app, but auth features won't work
+    runApp(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                  const SizedBox(height: 16),
+                  const Text(
+                    "Firebase Configuration Error",
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "$e",
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    "Please run:\n"
+                    "flutter pub global activate flutterfire_cli\n"
+                    "flutterfire configure",
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class MyApp extends StatelessWidget {
