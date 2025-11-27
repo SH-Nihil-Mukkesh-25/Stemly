@@ -39,8 +39,44 @@ class _GoogleSignInButtonState extends State<GoogleSignInButton> {
                 );
               } catch (error) {
                 if (!mounted) return;
+                final errorMessage = error.toString();
+                String userMessage;
+                
+                if (errorMessage.contains('ApiException: 10') || 
+                    errorMessage.contains('DEVELOPER_ERROR') ||
+                    errorMessage.contains('Firebase configuration')) {
+                  userMessage = "Firebase not configured. See FIREBASE_SETUP.md";
+                } else {
+                  userMessage = "Login failed: ${errorMessage.length > 100 
+                    ? errorMessage.substring(0, 100) + '...' 
+                    : errorMessage}";
+                }
+                
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text("Login failed: $error")),
+                  SnackBar(
+                    content: Text(userMessage),
+                    duration: const Duration(seconds: 5),
+                    action: SnackBarAction(
+                      label: "Details",
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text("Login Error"),
+                            content: SingleChildScrollView(
+                              child: Text(errorMessage),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text("OK"),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
                 );
               } finally {
                 if (mounted) setState(() => _loading = false);
