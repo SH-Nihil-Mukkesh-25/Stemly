@@ -22,8 +22,13 @@ class BottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const selectedColor = Color(0xFF003A70); // deep STEM blue
-    const unselectedColor = Colors.grey;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    final selectedColor = cs.primary;                         // adaptive blue
+    final unselectedColor = cs.onSurface.withOpacity(0.6);    // dimmed text
+    final bgColor = cs.surface.withOpacity(0.7);              // blurred adaptive
+    final shadowColor = cs.shadow.withOpacity(0.15);
 
     return ClipRRect(
       borderRadius: const BorderRadius.only(
@@ -34,28 +39,31 @@ class BottomNavBar extends StatelessWidget {
         filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.6),
+            color: bgColor,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.08),
+                color: shadowColor,
                 blurRadius: 20,
                 offset: const Offset(0, -4),
               ),
             ],
           ),
           child: BottomNavigationBar(
-            backgroundColor: Colors.white.withOpacity(0), // transparent
+            backgroundColor: Colors.transparent,
             elevation: 0,
             currentIndex: currentIndex,
             onTap: (index) => _onTap(context, index),
+
             selectedItemColor: selectedColor,
             unselectedItemColor: unselectedColor,
+
             showUnselectedLabels: true,
             type: BottomNavigationBarType.fixed,
+
             items: [
-              _animatedItem(Icons.home, "Main", 0),
-              _animatedItem(Icons.history, "History", 1),
-              _animatedItem(Icons.settings, "Settings", 2),
+              _animatedItem(Icons.home, "Main", 0, selectedColor),
+              _animatedItem(Icons.history, "History", 1, selectedColor),
+              _animatedItem(Icons.settings, "Settings", 2, selectedColor),
             ],
           ),
         ),
@@ -64,7 +72,11 @@ class BottomNavBar extends StatelessWidget {
   }
 
   BottomNavigationBarItem _animatedItem(
-      IconData icon, String label, int index) {
+    IconData icon,
+    String label,
+    int index,
+    Color selectedColor,
+  ) {
     return BottomNavigationBarItem(
       icon: TweenAnimationBuilder<double>(
         tween: Tween(
@@ -76,7 +88,9 @@ class BottomNavBar extends StatelessWidget {
         builder: (context, scale, _) {
           return Transform.scale(
             scale: scale,
-            child: Icon(icon),
+            child: Icon(
+              icon,
+            ),
           );
         },
       ),

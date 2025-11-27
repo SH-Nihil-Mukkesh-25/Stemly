@@ -36,15 +36,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget build(BuildContext context) {
     final history = HistoryStore.history;
 
-    const deepBlue = Color(0xFF003A70);
-    const blueShade = Color(0xFF60ABF1);
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    final deepBlue = cs.primary;
+    final blueShade = cs.secondary;
+    final scaffoldColor = theme.scaffoldBackgroundColor;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: scaffoldColor,
 
-      // ---------------- APP BAR ----------------
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           "Scan History",
           style: TextStyle(
             color: deepBlue,
@@ -52,7 +55,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
         ),
         centerTitle: true,
-        backgroundColor: Colors.white,
+        backgroundColor: theme.cardColor,
         elevation: 0.5,
 
         actions: [
@@ -66,12 +69,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ],
       ),
 
-      // ---------------- BODY ----------------
       body: history.isEmpty
-          ? const Center(
+          ? Center(
               child: Text(
                 "No scan history yet",
-                style: TextStyle(fontSize: 18, color: Colors.black54),
+                style: TextStyle(
+                  fontSize: 18,
+                  color: theme.colorScheme.onBackground.withOpacity(0.7),
+                ),
               ),
             )
           : ListView.builder(
@@ -106,14 +111,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     setState(() {});
 
                     final messenger = ScaffoldMessenger.of(context);
-
                     messenger.hideCurrentSnackBar();
+
                     messenger.showSnackBar(
                       SnackBar(
                         content: Text("Deleted '${removed.topic}'"),
                         duration: const Duration(seconds: 5),
-
-                        // 🔵 Blue UI shade for UNDO
                         action: SnackBarAction(
                           label: "UNDO",
                           textColor: blueShade,
@@ -125,11 +128,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         ),
                       ),
                     );
-
-                    // Auto-hide after 5 seconds
-                    Future.delayed(const Duration(seconds: 5), () {
-                      if (mounted) messenger.hideCurrentSnackBar();
-                    });
                   },
 
                   child: GestureDetector(
@@ -141,7 +139,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         ),
                       ).then((_) => setState(() {}));
                     },
-                    child: _historyCard(h),
+                    child: _historyCard(h, deepBlue, theme),
                   ),
                 );
               },
@@ -151,7 +149,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  // ---------------- DELETE BACKGROUND ----------------
+  // DELETE BG
   Widget _deleteBg({required bool left}) {
     return Container(
       color: Colors.red,
@@ -161,19 +159,19 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  // ---------------- HISTORY CARD ----------------
-  Widget _historyCard(h) {
-    const deepBlue = Color(0xFF003A70);
+  // HISTORY CARD
+  Widget _historyCard(h, Color deepBlue, ThemeData theme) {
+    final cs = theme.colorScheme;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFE8F3FF),
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: cs.shadow.withOpacity(0.15),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -201,7 +199,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
           const SizedBox(width: 14),
 
-          // TEXT CONTENT
+          // TEXT
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -210,27 +208,28 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   h.topic,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
                     color: deepBlue,
                   ),
                 ),
                 const SizedBox(height: 6),
+
                 Text(
                   "Variables: ${h.variables.join(', ')}",
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
-                    color: Color(0xFF4B6378),
+                    color: cs.onSurface.withOpacity(0.7),
                   ),
                 ),
               ],
             ),
           ),
 
-          // ⭐ STAR ICON (YELLOW)
+          // STAR
           IconButton(
             icon: Icon(
               h.isStarred ? Icons.star : Icons.star_border,

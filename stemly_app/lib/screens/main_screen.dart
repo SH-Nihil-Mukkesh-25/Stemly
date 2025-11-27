@@ -96,9 +96,12 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
     return Stack(
       children: [
-        _buildMainUI(),
+        _buildMainUI(theme, cs),
         if (loading)
           Container(
             color: Colors.black54,
@@ -106,11 +109,11 @@ class _MainScreenState extends State<MainScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(color: Colors.white),
+                  CircularProgressIndicator(),
                   SizedBox(height: 20),
                   Text(
                     "Analyzing Image...",
-                    style: TextStyle(color: Colors.white, fontSize: 18),
+                    style: TextStyle(fontSize: 18),
                   )
                 ],
               ),
@@ -120,43 +123,59 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  Widget _buildMainUI() {
+  Widget _buildMainUI(ThemeData theme, ColorScheme cs) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: theme.scaffoldBackgroundColor,
+
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        backgroundColor: Colors.white,
-        elevation: 0,
-        foregroundColor: Colors.black,
+        backgroundColor: theme.colorScheme.surface,
+        elevation: 0.5,
+        foregroundColor: theme.colorScheme.onSurface,
       ),
+
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 22),
           child: Column(
             children: [
               const SizedBox(height: 20),
-              const Text(
+
+              Text(
                 "STEMLY",
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: cs.primary,
+                ),
               ),
+
               const SizedBox(height: 26),
-              const Text(
+
+              Text(
                 "Scan → Get Mission →\nLearn Visually",
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: Colors.black54),
+                style: TextStyle(
+                  fontSize: 16,
+                  color: cs.onBackground.withOpacity(0.7),
+                ),
               ),
+
               const SizedBox(height: 40),
-              _scanBox(),
+
+              _scanBox(theme, cs),
+
               const SizedBox(height: 50),
             ],
           ),
         ),
       ),
+
       bottomNavigationBar: const BottomNavBar(currentIndex: 0),
     );
   }
 
-  Widget _scanBox() {
+  Widget _scanBox(ThemeData theme, ColorScheme cs) {
     return Center(
       child: SizedBox(
         width: MediaQuery.of(context).size.width * 0.65,
@@ -166,23 +185,24 @@ class _MainScreenState extends State<MainScreen> {
             onTap: _openCamera,
             child: Container(
               decoration: BoxDecoration(
-                color: const Color(0xFFD8ECFF),
+                color: cs.primaryContainer,
                 borderRadius: BorderRadius.circular(22),
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
+                children: [
                   CircleAvatar(
                     radius: 45,
-                    backgroundColor: Color(0xFF003A70),
-                    child: Icon(Icons.camera_alt, color: Colors.white, size: 60),
+                    backgroundColor: cs.primary,
+                    child: Icon(Icons.camera_alt,
+                        color: cs.onPrimary, size: 60),
                   ),
-                  SizedBox(height: 18),
+                  const SizedBox(height: 18),
                   Text(
                     "Scan to Learn",
                     style: TextStyle(
                       fontSize: 20,
-                      color: Color(0xFF003A70),
+                      color: cs.primary,
                       fontWeight: FontWeight.w600,
                     ),
                   )

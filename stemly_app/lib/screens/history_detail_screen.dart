@@ -14,8 +14,6 @@ class HistoryDetailScreen extends StatefulWidget {
 
 class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
   final Map<String, bool> expanded = {};
-  static const deepBlue = Color(0xFF003A70);     // DARK BLUE TEXT
-  static const lightBlue = Color(0xFFD8ECFF);    // LIGHT BLUE ACCENT
 
   @override
   void initState() {
@@ -29,22 +27,25 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
   Widget build(BuildContext context) {
     final h = widget.history;
 
-    const background = Color(0xFFF3F7FA);
-    const cardColor = Colors.white;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    final deepBlue = cs.primary;                    // dynamic primary
+    final lightBlue = cs.secondary.withOpacity(0.2);
+    final background = theme.scaffoldBackgroundColor;
+    final cardColor = theme.cardColor;
 
     return DefaultTabController(
       length: 2,
       child: Scaffold(
         backgroundColor: background,
 
-        // ---------------- APP BAR ----------------
         appBar: AppBar(
           backgroundColor: lightBlue,
           elevation: 0,
+          iconTheme: IconThemeData(color: deepBlue),
 
-          iconTheme: const IconThemeData(color: deepBlue),
-
-          title: const Text(
+          title: Text(
             "Scan Details",
             style: TextStyle(
               color: deepBlue,
@@ -68,7 +69,6 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
             ),
           ],
 
-          // ---------------- TAB BAR ----------------
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(55),
             child: Container(
@@ -86,20 +86,16 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                     color: deepBlue,
                     borderRadius: BorderRadius.circular(30),
                   ),
-
                   indicatorSize: TabBarIndicatorSize.tab,
 
-                  labelColor: lightBlue,       // active tab text
+                  labelColor: cs.onPrimary,
                   unselectedLabelColor: deepBlue,
 
                   labelStyle: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 15,
                   ),
-
-                  unselectedLabelStyle: const TextStyle(
-                    fontSize: 14,
-                  ),
+                  unselectedLabelStyle: const TextStyle(fontSize: 14),
 
                   tabs: const [
                     Tab(text: "AI Visualiser"),
@@ -111,11 +107,10 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
           ),
         ),
 
-        // ---------------- BODY ----------------
         body: TabBarView(
           children: [
-            _visualiser(h),
-            _notes(h, cardColor),
+            _visualiser(h, deepBlue),
+            _notes(h, cardColor, deepBlue),
           ],
         ),
       ),
@@ -123,20 +118,19 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
   }
 
   // ---------------- VISUALISER TAB ----------------
-  Widget _visualiser(ScanHistory h) {
+  Widget _visualiser(ScanHistory h, Color deepBlue) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(22),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // IMAGE
           Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(18),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.10),
-                  blurRadius: 16,
+                  color: Colors.black.withOpacity(0.20),
+                  blurRadius: 14,
                   offset: const Offset(0, 6),
                 ),
               ],
@@ -154,18 +148,19 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
 
           const SizedBox(height: 30),
 
-          _title("Topic"),
-          _value(h.topic),
+          _title("Topic", deepBlue),
+          _value(h.topic, deepBlue),
           const SizedBox(height: 20),
 
-          _title("Variables"),
-          _value(h.variables.join(", ")),
+          _title("Variables", deepBlue),
+          _value(h.variables.join(", "), deepBlue),
           const SizedBox(height: 20),
 
-          _title("Scanned At"),
+          _title("Scanned At", deepBlue),
           _value(
             "${h.timestamp.day}/${h.timestamp.month}/${h.timestamp.year}  "
             "${h.timestamp.hour}:${h.timestamp.minute.toString().padLeft(2, '0')}",
+            deepBlue,
           ),
         ],
       ),
@@ -173,7 +168,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
   }
 
   // ---------------- NOTES TAB ----------------
-  Widget _notes(ScanHistory h, Color cardColor) {
+  Widget _notes(ScanHistory h, Color cardColor, Color deepBlue) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(18),
       child: Column(
@@ -189,8 +184,9 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                 expanded[key] = !expanded[key]!;
               });
             },
-            child: _buildContent(value),
+            child: _buildContent(value, deepBlue),
             cardColor: cardColor,
+            deepBlue: deepBlue,
           );
         }).toList(),
       ),
@@ -204,6 +200,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     required VoidCallback onTap,
     required Widget child,
     required Color cardColor,
+    required Color deepBlue,
   }) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 260),
@@ -213,7 +210,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withOpacity(0.10),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -231,7 +228,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 18,
                       color: deepBlue,
                       fontWeight: FontWeight.w700,
@@ -249,8 +246,8 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
 
           AnimatedCrossFade(
             duration: const Duration(milliseconds: 260),
-            crossFadeState:
-                expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+            crossFadeState: 
+              expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
             firstChild: const SizedBox.shrink(),
             secondChild: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -263,11 +260,11 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
   }
 
   // ---------------- CONTENT BUILDER ----------------
-  Widget _buildContent(dynamic value) {
+  Widget _buildContent(dynamic value, Color deepBlue) {
     if (value is String) {
       return Text(
         value,
-        style: const TextStyle(fontSize: 15, color: deepBlue),
+        style: TextStyle(fontSize: 15, color: deepBlue),
       );
     }
 
@@ -277,7 +274,8 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
         children: value
             .map((e) => Padding(
                   padding: const EdgeInsets.only(bottom: 6),
-                  child: Text("• $e", style: const TextStyle(fontSize: 15, color: deepBlue)),
+                  child: Text("• $e",
+                      style: TextStyle(fontSize: 15, color: deepBlue)),
                 ))
             .toList(),
       );
@@ -290,7 +288,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
             .map((e) => Padding(
                   padding: const EdgeInsets.only(bottom: 6),
                   child: Text("${e.key}: ${e.value}",
-                      style: const TextStyle(fontSize: 15, color: deepBlue)),
+                      style: TextStyle(fontSize: 15, color: deepBlue)),
                 ))
             .toList(),
       );
@@ -299,11 +297,10 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     return const Text("Unsupported format");
   }
 
-  // ---------------- TITLE ----------------
-  Widget _title(String text) {
+  Widget _title(String text, Color deepBlue) {
     return Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 22,
         fontWeight: FontWeight.bold,
         color: deepBlue,
@@ -311,16 +308,17 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     );
   }
 
-  // ---------------- VALUE ----------------
-  Widget _value(String text) {
+  Widget _value(String text, Color deepBlue) {
     return Text(
       text,
-      style: const TextStyle(fontSize: 17, color: deepBlue),
+      style: TextStyle(fontSize: 17, color: deepBlue),
     );
   }
 
-  // ---------------- KEY FORMATTER ----------------
   String _formatKey(String raw) {
-    return raw.replaceAll("_", " ").trim().replaceFirst(raw[0], raw[0].toUpperCase());
+    return raw.replaceAll("_", " ").trim().replaceFirst(
+          raw[0],
+          raw[0].toUpperCase(),
+        );
   }
 }
