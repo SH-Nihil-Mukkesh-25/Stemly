@@ -1,26 +1,34 @@
-from fastapi import APIRouter, UploadFile, File, Form
-from services.storage import save_scan
-from services.ai_detector import detect_topic
-from services.history_service import add_history, get_user_history
-from services.ai_notes import generate_notes, follow_up_notes
-from models.notes_models import NotesGenerateRequest, NotesFollowUpRequest
+# backend/routers/scan.py
 
-router = APIRouter()
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+
+from auth.auth_middleware import require_firebase_user
+from database.history_model import get_user_history, save_scan_history
+from services.ai_detector import detect_topic
+from services.storage import save_scan
+
+router = APIRouter(
+    dependencies=[Depends(require_firebase_user)],
+    tags=["Scan"],
+)
 
 
 @router.post("/upload")
-async def upload_scan(
-    user_id: str = Form(...),
-    file: UploadFile = File(...)
-):
-    saved_path = await save_scan(file)
+async def upload_scan(request: Request, file: UploadFile = File(...)):
+    user_id = request.state.user["uid"]
+
+    try:
+        saved_path = await save_scan(file)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     topic, variables = await detect_topic(saved_path)
 
-    record_id = add_history(
+    record_id = await save_scan_history(
         user_id=user_id,
         image_path=saved_path,
         topic=topic,
-        variables=variables
+        variables=variables,
     )
 
     return {
@@ -28,29 +36,15 @@ async def upload_scan(
         "topic": topic,
         "variables": variables,
         "image_path": saved_path,
-        "history_id": record_id
+        "history_id": record_id,
     }
 
 
-@router.post("/notes")
-async def generate_full_notes(payload: NotesGenerateRequest):
-    notes = await generate_notes(payload.topic, payload.variables)
-    return notes.dict()
-
-
-@router.post("/notes/followup")
-async def followup_notes(payload: NotesFollowUpRequest):
-    notes = await follow_up_notes(
-        payload.topic,
-        payload.previous_notes,
-        payload.user_prompt
-    )
-    return notes.dict()
-
-
-@router.get("/history/{user_id}")
-def history(user_id: str):
-    return {"history": get_user_history(user_id)}
+@router.get("/history")
+async def history(request: Request):
+    user_id = request.state.user["uid"]
+    history_data = await get_user_history(user_id)
+    return {"history": history_data}
 
 
 @router.get("/ping")

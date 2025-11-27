@@ -119,6 +119,68 @@ Unlike YouTube, Google Lens, ChatGPT, textbooks, or traditional tutoring, Stemly
 - **Simulation System:** Template-based, dynamically generated
 - **Interactive UI:** Real-time parameter controls and regeneration
 
+## 🔐 Authentication & User Accounts
+
+Stemly now ships with first-class Google authentication powered by Firebase Auth on the Flutter client and Firebase Admin + MongoDB on the FastAPI backend.
+
+### Backend configuration
+
+1. **Create a Firebase service account**
+   - Firebase Console → Project Settings → Service Accounts → Generate New Private Key.
+   - Store the JSON file securely (never commit it).
+2. **Expose the credentials via environment variables** so `backend/auth/firebase.py` can bootstrap Firebase Admin:
+
+```env
+# backend/.env
+MONGO_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/stemly
+GEMINI_API_KEY=your_gemini_key
+FIREBASE_CREDENTIALS_FILE=C:\secrets\stemly-service-account.json
+# or instead of a file path:
+# FIREBASE_CREDENTIALS_JSON={"type":"service_account",...}
+```
+
+3. **Install backend dependencies** and run the API:
+
+```bash
+cd backend
+pip install -r requirements.txt
+uvicorn main:app --reload
+```
+
+`auth/auth_middleware.py` verifies every `Authorization: Bearer <Firebase ID token>` header, persists the user inside the `users` collection, and exposes the hydrated profile on `request.state.user`. Collections `scans`, `notes`, and `visualiser` are all automatically scoped by `user_id`, ensuring per-user isolation.
+
+### Flutter configuration
+
+1. Run `flutterfire configure` to generate a real `lib/firebase_options.dart` file for every target platform.
+2. Install the new authentication helpers:
+
+```bash
+cd stemly_app
+flutter pub get
+flutter run --dart-define=STEMLY_API_BASE_URL=https://api.yourdomain.com
+```
+
+3. Use the provided `FirebaseAuthService` + `GoogleSignInButton` for Google login, profile caching, and ID token retrieval. The service keeps the latest ID token inside secure storage and exposes helpers for attaching the header to HTTP calls:
+
+```dart
+final authService = context.read<FirebaseAuthService>();
+final response = await http.get(
+  Uri.parse('https://api.yourdomain.com/scan/history'),
+  headers: await authService.authenticatedHeaders(),
+);
+```
+
+`AccountScreen` now demonstrates a drop-in login UI, token-aware logout, and backend warm-up via the `/auth/me` endpoint.
+
+### API smoke test
+
+```bash
+curl https://api.yourdomain.com/auth/me \
+  -H "Authorization: Bearer $(firebase id token here)"
+```
+
+The response returns the verified Firebase profile, confirming that FastAPI + Firebase Admin + MongoDB are wired correctly.
+
 ## 📝 License
 
 [Add your license here]

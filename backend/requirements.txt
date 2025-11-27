@@ -18,5 +18,12 @@ pydantic
 langchain
 langchain-google-genai
 
+# MongoDB async driver
+motor
+pymongo
+
+# Firebase ID token verification
+firebase-admin
+
 # Optional: helpful utilities
 requests

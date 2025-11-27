@@ -1,6 +1,9 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
+import 'package:provider/provider.dart';
+
+import '../services/firebase_auth_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -63,9 +66,10 @@ class _SplashScreenState extends State<SplashScreen>
     _mainController.forward();
 
     Future.delayed(const Duration(milliseconds: 3500), () {
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, '/');
-      }
+      if (!mounted) return;
+      final auth = context.read<FirebaseAuthService>();
+      final nextRoute = auth.isAuthenticated ? '/' : '/login';
+      Navigator.pushReplacementNamed(context, nextRoute);
     });
   }
 

@@ -10,9 +10,26 @@ __pycache__/
 # Ignore virtual environments
 venv/
 env/
+backend/.venv/
 
 # Ignore local history backups
 .history/
 
 # Ignore static scans (optional)
 static/scans/
+backend/static/scans/
+
+# Firebase / service account credentials (do NOT commit real keys)
+backend/firebase_service_account.json
+*service-account*.json
+*firebase-adminsdk*.json
+
+# Flutter / Dart build artifacts
+stemly_app/build/
+stemly_app/.dart_tool/
+stemly_app/.firebase/
+stemly_app/ios/Pods/
+stemly_app/macos/Pods/
+stemly_app/android/.gradle/
+stemly_app/android/app/google-services.json
+stemly_app/ios/Runner/GoogleService-Info.plist

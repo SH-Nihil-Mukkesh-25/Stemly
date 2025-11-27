@@ -3,8 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 # Routers
-from routers import scan
-from routers import notes
+from auth import auth_router
+from routers import notes, scan, visualiser
 
 app = FastAPI(title="Stemly Backend")
 
@@ -27,8 +27,10 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # ----------------------------
 # Routers
 # ----------------------------
-app.include_router(scan.router, prefix="/scan", tags=["Scan"])
-app.include_router(notes.router, prefix="/notes", tags=["Notes"])
+app.include_router(auth_router.router)
+app.include_router(scan.router, prefix="/scan")
+app.include_router(notes.router)
+app.include_router(visualiser.router)
 
 # ----------------------------
 # Root Route

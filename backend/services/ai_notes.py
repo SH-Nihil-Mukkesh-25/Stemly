@@ -1,11 +1,12 @@
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.messages import HumanMessage
+from typing import Optional
 from config import llm, is_ai_enabled
 from models.notes_models import NotesResponse
+from utils.file_utils import resolve_scan_path
 import google.generativeai as genai
 import json
-import os
 import re
 
 parser = PydanticOutputParser(pydantic_object=NotesResponse)
@@ -75,22 +76,10 @@ Context:
 The student now asks a follow‑up question:
 "{user_prompt}"
 
-<<<<<<< Updated upstream
 STRICT RULES:
 - Output ONLY valid JSON.
 - No markdown.
 - Follow this JSON structure:
-=======
-Your job:
-- Stay within the same subject and conceptual space implied by the topic and existing notes.
-- Do NOT suddenly switch to generic programming / string explanations unless the topic and notes clearly indicate Computer Science.
-- Either update/extend the existing notes or generate a new section that directly answers the student’s question, while keeping the same JSON structure.
-
-STRICT OUTPUT RULES:
-- Output ONLY valid JSON.
-- No markdown or ``` blocks.
-- Follow this JSON structure exactly:
->>>>>>> Stashed changes
 {format_instructions}
 """
 )
@@ -107,42 +96,20 @@ def clean_json_output(text: str):
         return None
 
 
-<<<<<<< Updated upstream
-async def generate_notes(topic: str, variables: list):
-=======
-
-
-# ------------------------------
-# 5. MAIN FUNCTION → GENERATE NOTES
-# ------------------------------
-
-async def generate_notes(topic: str, variables: list, image_path: str | None = None):
-    """
-    Generate full structured study notes.
-
-    If image_path is provided, use Gemini's multimodal (image + text) API
-    with a strong STEM-focused system prompt. Otherwise, fall back to the
-    text-only LangChain LLM using topic + variables.
-    """
-
->>>>>>> Stashed changes
+async def generate_notes(topic: str, variables: list, image_path: Optional[str] = None):
     if not is_ai_enabled():
         raise RuntimeError("Gemini AI is not configured.")
 
     # If we have access to the scanned image, let Gemini see it directly.
     if image_path:
-        # Resolve path in case a relative URL like "static/scans/xyz.png" is passed.
-        local_path = image_path
-        if not os.path.isfile(local_path) and image_path.startswith("static/"):
-            # Assume backend working dir is project root.
-            local_path = os.path.join(os.getcwd(), image_path)
-
-        if not os.path.isfile(local_path):
-            print(f"⚠ Image path for notes not found: {image_path} (resolved: {local_path}), falling back to text-only.")
+        try:
+            local_path = resolve_scan_path(image_path)
+        except ValueError as exc:
+            print(f"⚠ Invalid scan path provided for notes: {exc}")
         else:
             # Detect MIME type from extension.
-            ext = local_path.lower()
-            if ext.endswith(".jpg") or ext.endswith(".jpeg"):
+            ext = local_path.suffix.lower()
+            if ext in (".jpg", ".jpeg"):
                 mime_type = "image/jpeg"
             else:
                 mime_type = "image/png"
@@ -182,12 +149,6 @@ async def generate_notes(topic: str, variables: list, image_path: str | None = N
     response = llm.invoke([HumanMessage(content=prompt)])
     raw_text = response.content
     data = clean_json_output(raw_text)
-<<<<<<< Updated upstream
-=======
-    if data is None:
-        raise ValueError("Invalid JSON from Gemini Notes (text-only)")
-
->>>>>>> Stashed changes
     return NotesResponse(**data)
 
 

@@ -1,21 +1,36 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'firebase_options.dart';
+import 'services/firebase_auth_service.dart';
 import 'theme/theme_provider.dart';
 
 // Screens
-import 'screens/splash_screen.dart';
-import 'screens/main_screen.dart';
-import 'screens/history_screen.dart';
-import 'screens/settings_screen.dart';
-import 'screens/privacy_policy_screen.dart';
-import 'screens/terms_screen.dart';
 import 'screens/account_screen.dart';
+import 'screens/history_screen.dart';
+import 'screens/main_screen.dart';
+import 'screens/login_screen.dart';
+import 'screens/privacy_policy_screen.dart';
+import 'screens/settings_screen.dart';
+import 'screens/splash_screen.dart';
+import 'screens/terms_screen.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  final authService = FirebaseAuthService();
+  await authService.initialize();
+
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => ThemeProvider(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider<FirebaseAuthService>.value(value: authService),
+      ],
       child: const MyApp(),
     ),
   );
@@ -59,6 +74,10 @@ class MyApp extends StatelessWidget {
 
           case '/':
             page = const MainScreen();
+            break;
+
+          case '/login':
+            page = const LoginScreen();
             break;
 
           case '/history':
