@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import '../models/scan_history.dart';
 import '../storage/history_store.dart';
+import '../widgets/bottom_nav_bar.dart'; // ← ADD THIS
 
 class HistoryDetailScreen extends StatefulWidget {
   final ScanHistory history;
@@ -30,7 +31,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
-    final deepBlue = cs.primary;                    // dynamic primary
+    final deepBlue = cs.primary;
     final lightBlue = cs.secondary.withOpacity(0.2);
     final background = theme.scaffoldBackgroundColor;
     final cardColor = theme.cardColor;
@@ -39,6 +40,11 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
       length: 2,
       child: Scaffold(
         backgroundColor: background,
+
+        // ------------------------------
+        // CURVED BOTTOM NAV BAR ADDED
+        // ------------------------------
+        bottomNavigationBar: BottomNavBar(currentIndex: 1),
 
         appBar: AppBar(
           backgroundColor: lightBlue,
@@ -81,22 +87,18 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                 ),
                 child: TabBar(
                   dividerColor: Colors.transparent,
-
                   indicator: BoxDecoration(
                     color: deepBlue,
                     borderRadius: BorderRadius.circular(30),
                   ),
                   indicatorSize: TabBarIndicatorSize.tab,
-
                   labelColor: cs.onPrimary,
                   unselectedLabelColor: deepBlue,
-
                   labelStyle: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 15,
                   ),
                   unselectedLabelStyle: const TextStyle(fontSize: 14),
-
                   tabs: const [
                     Tab(text: "AI Visualiser"),
                     Tab(text: "AI Notes"),
@@ -117,7 +119,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     );
   }
 
-  // ---------------- VISUALISER TAB ----------------
+  // ---------------- VISUAL TAB ----------------
   Widget _visualiser(ScanHistory h, Color deepBlue) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(22),
@@ -174,7 +176,6 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
       child: Column(
         children: h.notesJson.entries.map((entry) {
           final key = entry.key;
-          final value = entry.value;
 
           return _expandableCard(
             title: _formatKey(key),
@@ -184,7 +185,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                 expanded[key] = !expanded[key]!;
               });
             },
-            child: _buildContent(value, deepBlue),
+            child: _buildContent(entry.value, deepBlue),
             cardColor: cardColor,
             deepBlue: deepBlue,
           );
@@ -193,7 +194,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     );
   }
 
-  // ---------------- EXPANDABLE CARD ----------------
+  // ---------------- OTHER HELPERS (unchanged) ----------------
   Widget _expandableCard({
     required String title,
     required bool expanded,
@@ -243,11 +244,10 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
               ),
             ),
           ),
-
           AnimatedCrossFade(
             duration: const Duration(milliseconds: 260),
-            crossFadeState: 
-              expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+            crossFadeState:
+                expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
             firstChild: const SizedBox.shrink(),
             secondChild: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -259,15 +259,10 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     );
   }
 
-  // ---------------- CONTENT BUILDER ----------------
   Widget _buildContent(dynamic value, Color deepBlue) {
     if (value is String) {
-      return Text(
-        value,
-        style: TextStyle(fontSize: 15, color: deepBlue),
-      );
+      return Text(value, style: TextStyle(fontSize: 15, color: deepBlue));
     }
-
     if (value is List) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -280,7 +275,6 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
             .toList(),
       );
     }
-
     if (value is Map) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -297,28 +291,12 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     return const Text("Unsupported format");
   }
 
-  Widget _title(String text, Color deepBlue) {
-    return Text(
-      text,
-      style: TextStyle(
-        fontSize: 22,
-        fontWeight: FontWeight.bold,
-        color: deepBlue,
-      ),
-    );
-  }
+  Widget _title(String text, Color deepBlue) =>
+      Text(text, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: deepBlue));
 
-  Widget _value(String text, Color deepBlue) {
-    return Text(
-      text,
-      style: TextStyle(fontSize: 17, color: deepBlue),
-    );
-  }
+  Widget _value(String text, Color deepBlue) =>
+      Text(text, style: TextStyle(fontSize: 17, color: deepBlue));
 
-  String _formatKey(String raw) {
-    return raw.replaceAll("_", " ").trim().replaceFirst(
-          raw[0],
-          raw[0].toUpperCase(),
-        );
-  }
+  String _formatKey(String raw) =>
+      raw.replaceAll("_", " ").trim().replaceFirst(raw[0], raw[0].toUpperCase());
 }

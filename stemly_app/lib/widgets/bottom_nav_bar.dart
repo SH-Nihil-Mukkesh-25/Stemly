@@ -6,7 +6,9 @@ class BottomNavBar extends StatelessWidget {
 
   const BottomNavBar({super.key, required this.currentIndex});
 
-  void _onTap(BuildContext context, int index) {
+  static const Color blue = Color(0xFF1A73E8); // Google blue
+
+  void _go(BuildContext context, int index) {
     switch (index) {
       case 0:
         Navigator.pushReplacementNamed(context, '/');
@@ -17,84 +19,113 @@ class BottomNavBar extends StatelessWidget {
       case 2:
         Navigator.pushReplacementNamed(context, '/settings');
         break;
+      case 3:
+        Navigator.pushReplacementNamed(context, '/account');
+        break;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final selectedColor = cs.primary;                         // adaptive blue
-    final unselectedColor = cs.onSurface.withOpacity(0.6);    // dimmed text
-    final bgColor = cs.surface.withOpacity(0.7);              // blurred adaptive
-    final shadowColor = cs.shadow.withOpacity(0.15);
+    // 🌫️ GLASS COLORS THAT MATCH BOTH THEMES
+    final Color glassColor = isDark
+        ? Colors.blue.withOpacity(0.15)  // dark mode → dark blue glass
+        : Colors.white.withOpacity(0.15); // light mode → white clean glass
 
-    return ClipRRect(
-      borderRadius: const BorderRadius.only(
-        topLeft: Radius.circular(28),
-        topRight: Radius.circular(28),
-      ),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-        child: Container(
-          decoration: BoxDecoration(
-            color: bgColor,
-            boxShadow: [
-              BoxShadow(
-                color: shadowColor,
-                blurRadius: 20,
-                offset: const Offset(0, -4),
-              ),
-            ],
-          ),
-          child: BottomNavigationBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            currentIndex: currentIndex,
-            onTap: (index) => _onTap(context, index),
+    // 🌟 SHADOW BASED ON THEME
+    final Color shadowColor = isDark
+        ? Colors.black.withOpacity(0.45)
+        : blue.withOpacity(0.30);
 
-            selectedItemColor: selectedColor,
-            unselectedItemColor: unselectedColor,
+    // TEXT + ICON COLORS ADAPT CLEANLY
+    final Color inactiveColor = isDark ? Colors.white70 : Colors.black87;
 
-            showUnselectedLabels: true,
-            type: BottomNavigationBarType.fixed,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 18, left: 16, right: 16),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(22),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 260),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
 
-            items: [
-              _animatedItem(Icons.home, "Main", 0, selectedColor),
-              _animatedItem(Icons.history, "History", 1, selectedColor),
-              _animatedItem(Icons.settings, "Settings", 2, selectedColor),
-            ],
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(22),
+              color: glassColor, // 💎 theme-aware clean glass
+              boxShadow: [
+                BoxShadow(
+                  color: shadowColor,
+                  blurRadius: 26,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _item(context, Icons.home_rounded, 0, "Home", inactiveColor),
+                _item(context, Icons.history_rounded, 1, "History", inactiveColor),
+                _item(context, Icons.settings_rounded, 2, "Settings", inactiveColor),
+                _item(context, Icons.person_rounded, 3, "Account", inactiveColor),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  BottomNavigationBarItem _animatedItem(
+  Widget _item(
+    BuildContext context,
     IconData icon,
-    String label,
     int index,
-    Color selectedColor,
+    String label,
+    Color inactiveColor,
   ) {
-    return BottomNavigationBarItem(
-      icon: TweenAnimationBuilder<double>(
-        tween: Tween(
-          begin: 1.0,
-          end: currentIndex == index ? 1.28 : 1.0,
+    final bool selected = currentIndex == index;
+
+    return GestureDetector(
+      onTap: () => _go(context, index),
+
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          color: selected ? blue.withOpacity(0.25) : Colors.transparent,
         ),
-        duration: const Duration(milliseconds: 240),
-        curve: Curves.easeOut,
-        builder: (context, scale, _) {
-          return Transform.scale(
-            scale: scale,
-            child: Icon(
-              icon,
+
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedScale(
+              scale: selected ? 1.20 : 1.0,
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              child: Icon(
+                icon,
+                size: 28,
+                color: selected ? blue : inactiveColor,
+              ),
             ),
-          );
-        },
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+                color: selected ? blue : inactiveColor,
+              ),
+            ),
+          ],
+        ),
       ),
-      label: label,
     );
   }
 }

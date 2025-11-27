@@ -104,12 +104,12 @@ class _MainScreenState extends State<MainScreen> {
         _buildMainUI(theme, cs),
         if (loading)
           Container(
-            color: Colors.black54,
+            color: Colors.black45,
             child: const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(),
+                  CircularProgressIndicator(strokeWidth: 3),
                   SizedBox(height: 20),
                   Text(
                     "Analyzing Image...",
@@ -129,43 +129,46 @@ class _MainScreenState extends State<MainScreen> {
 
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        backgroundColor: theme.colorScheme.surface,
-        elevation: 0.5,
-        foregroundColor: theme.colorScheme.onSurface,
+        backgroundColor: theme.cardColor,
+        foregroundColor: cs.onSurface,
+        elevation: 0.4,
+        title: Text(
+          "STEMLY",
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            color: cs.primary,
+            fontSize: 22,
+          ),
+        ),
+        centerTitle: true,
       ),
 
       body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 22),
           child: Column(
             children: [
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
 
               Text(
-                "STEMLY",
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  color: cs.primary,
-                ),
-              ),
-
-              const SizedBox(height: 26),
-
-              Text(
-                "Scan → Get Mission →\nLearn Visually",
+                "Scan → Visualize → Learn",
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 17,
                   color: cs.onBackground.withOpacity(0.7),
+                  height: 1.3,
                 ),
               ),
 
               const SizedBox(height: 40),
 
-              _scanBox(theme, cs),
+              Hero(
+                tag: "scanBtn",
+                child: _scanBox(theme, cs),
+              ),
 
-              const SizedBox(height: 50),
+              const SizedBox(height: 40),
             ],
           ),
         ),
@@ -183,27 +186,40 @@ class _MainScreenState extends State<MainScreen> {
           aspectRatio: 1,
           child: GestureDetector(
             onTap: _openCamera,
-            child: Container(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 260),
+              curve: Curves.easeOut,
               decoration: BoxDecoration(
                 color: cs.primaryContainer,
                 borderRadius: BorderRadius.circular(22),
+                boxShadow: [
+                  BoxShadow(
+                    color: cs.shadow.withOpacity(0.15),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
               ),
+
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   CircleAvatar(
                     radius: 45,
                     backgroundColor: cs.primary,
-                    child: Icon(Icons.camera_alt,
-                        color: cs.onPrimary, size: 60),
+                    child: Icon(
+                      Icons.camera_alt,
+                      color: cs.onPrimary,
+                      size: 62,
+                    ),
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 20),
                   Text(
                     "Scan to Learn",
                     style: TextStyle(
                       fontSize: 20,
                       color: cs.primary,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                     ),
                   )
                 ],

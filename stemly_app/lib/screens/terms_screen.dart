@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-class PrivacyPolicyScreen extends StatelessWidget {
-  const PrivacyPolicyScreen({super.key});
+class TermsScreen extends StatelessWidget {
+  const TermsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -11,14 +11,16 @@ class PrivacyPolicyScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
 
+      // ---------- APP BAR ----------
       appBar: AppBar(
-        title: const Text("Privacy Policy"),
-        elevation: 0.4,
+        title: const Text("Terms & Conditions"),
+        centerTitle: true,
         backgroundColor: theme.cardColor,
         foregroundColor: cs.onSurface,
-        centerTitle: true,
+        elevation: 0.4,
       ),
 
+      // ---------- BODY ----------
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Container(
@@ -39,24 +41,23 @@ class PrivacyPolicyScreen extends StatelessWidget {
               physics: const BouncingScrollPhysics(),
               children: [
                 Text(
-                  "Privacy Policy",
+                  "Terms & Conditions",
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w800,
-                    color: cs.primary,
                     height: 1.2,
+                    color: cs.primary,
                   ),
                 ),
 
                 const SizedBox(height: 12),
 
                 Text(
-                  "This Privacy Policy explains how STEMLY collects, uses, "
-                  "protects, and stores your information.",
+                  "Please read these Terms & Conditions carefully before using the STEMLY application.",
                   style: TextStyle(
                     fontSize: 16,
-                    color: cs.onSurface.withOpacity(0.75),
                     height: 1.5,
+                    color: cs.onSurface.withOpacity(0.75),
                   ),
                 ),
 
@@ -64,41 +65,42 @@ class PrivacyPolicyScreen extends StatelessWidget {
 
                 _section(
                   context,
-                  title: "1. Information We Collect",
+                  title: "1. Acceptance of Terms",
                   body:
-                      "We only process images and text you voluntarily upload for educational analysis. "
-                      "We do not collect personal data unless you explicitly provide it.",
+                      "By installing or using STEMLY, you agree to these Terms & Conditions. "
+                      "If you disagree, please discontinue usage.",
                 ),
 
                 _section(
                   context,
-                  title: "2. How We Use Your Data",
+                  title: "2. Educational Purpose",
                   body:
-                      "Uploaded images and variables are processed to generate visual learning material. "
-                      "Your data is never sold or shared with third parties.",
+                      "STEMLY is offered strictly for educational learning, visualization, and productivity. "
+                      "It must not be used for harmful or illegal activities.",
                 ),
 
                 _section(
                   context,
-                  title: "3. Data Storage",
+                  title: "3. Generated Content",
                   body:
-                      "Scanned images are stored locally on your device. "
-                      "Nothing is stored on external servers without your consent.",
+                      "AI-generated explanations, notes, and visuals may contain minor inaccuracies. "
+                      "Always verify important information independently.",
                 ),
 
                 _section(
                   context,
-                  title: "4. Third-Party Services",
+                  title: "4. User Responsibilities",
                   body:
-                      "We may use AI APIs for generating notes or visuals. "
-                      "These APIs only receive the data needed for processing.",
+                      "You are responsible for using the app ethically and ensuring the images you upload "
+                      "are your own and do not violate copyright.",
                 ),
 
                 _section(
                   context,
-                  title: "5. Your Consent",
+                  title: "5. App Updates",
                   body:
-                      "By using STEMLY, you consent to the processing of your content solely for learning enhancement.",
+                      "STEMLY may receive updates that add, modify, or remove features. "
+                      "Continued use implies acceptance of changes.",
                 ),
 
                 const SizedBox(height: 10),
@@ -110,6 +112,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
     );
   }
 
+  // ---------- SECTION WIDGET ----------
   Widget _section(
     BuildContext context, {
     required String title,

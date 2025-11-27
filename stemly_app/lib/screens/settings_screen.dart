@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:lottie/lottie.dart';
 
 import '../widgets/bottom_nav_bar.dart';
 import '../theme/theme_provider.dart';
@@ -20,16 +19,6 @@ class SettingsScreen extends StatelessWidget {
 
   Future<void> _rateApp() async {
     const url = "https://play.google.com/store/apps/details?id=com.stemly.app";
-    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-  }
-
-  Future<void> _openPrivacy() async {
-    const url = "https://yourwebsite.com/privacy-policy";
-    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-  }
-
-  Future<void> _openTerms() async {
-    const url = "https://yourwebsite.com/terms";
     await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
   }
 
@@ -110,27 +99,25 @@ class SettingsScreen extends StatelessWidget {
           expand: false,
           initialChildSize: 0.75,
           maxChildSize: 0.9,
-          builder: (_, controller) {
+          builder: (context, controller) {
             return Padding(
               padding: const EdgeInsets.all(22),
               child: ListView(
                 controller: controller,
                 children: [
-                  Center(
-                    child: SizedBox(
-                      height: 180,
-                      child: Lottie.asset(
-                        "assets/animations/team.json",
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ),
+                  // ❌ REMOVED ONLY THE ANIMATION — NOTHING ELSE
+                  const SizedBox(height: 10),
+
                   Row(
                     children: [
                       CircleAvatar(
                         radius: 30,
                         backgroundColor: cs.primary,
-                        child: Icon(Icons.school, color: cs.onPrimary, size: 32),
+                        child: Icon(
+                          Icons.school,
+                          color: cs.onPrimary,
+                          size: 32,
+                        ),
                       ),
                       const SizedBox(width: 16),
                       Text(
@@ -143,7 +130,9 @@ class SettingsScreen extends StatelessWidget {
                       ),
                     ],
                   ),
+
                   const SizedBox(height: 20),
+
                   Text(
                     "We are the creators of STEMLY — a tool that transforms STEM learning into an interactive visual experience.",
                     style: TextStyle(
@@ -151,7 +140,9 @@ class SettingsScreen extends StatelessWidget {
                       color: cs.onSurface.withOpacity(0.8),
                     ),
                   ),
+
                   const SizedBox(height: 28),
+
                   Text(
                     "Team Members",
                     style: TextStyle(
@@ -160,7 +151,9 @@ class SettingsScreen extends StatelessWidget {
                       color: cs.primary,
                     ),
                   ),
+
                   const SizedBox(height: 16),
+
                   _teamTile(
                     cs,
                     name: "P Dakshin Raj",
@@ -169,6 +162,7 @@ class SettingsScreen extends StatelessWidget {
                     github: "https://github.com/",
                     linkedin: "https://linkedin.com/",
                   ),
+
                   _teamTile(
                     cs,
                     name: "S H Nihi Mukkesh",
@@ -177,6 +171,7 @@ class SettingsScreen extends StatelessWidget {
                     github: "https://github.com/",
                     linkedin: "https://linkedin.com/",
                   ),
+
                   _teamTile(
                     cs,
                     name: "Shre Ram P J",
@@ -185,6 +180,7 @@ class SettingsScreen extends StatelessWidget {
                     github: "https://github.com/",
                     linkedin: "https://linkedin.com/",
                   ),
+
                   _teamTile(
                     cs,
                     name: "Vibin Ragav",
@@ -214,8 +210,23 @@ class SettingsScreen extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 18),
       child: Row(
         children: [
-          CircleAvatar(radius: 28, backgroundImage: AssetImage(avatar)),
+          CircleAvatar(
+            radius: 28,
+            backgroundColor: cs.primary.withOpacity(0.15),
+            child: ClipOval(
+              child: Image.asset(
+                avatar,
+                width: 56,
+                height: 56,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Icon(Icons.person, size: 32, color: cs.primary);
+                },
+              ),
+            ),
+          ),
           const SizedBox(width: 14),
+
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -238,6 +249,7 @@ class SettingsScreen extends StatelessWidget {
               ],
             ),
           ),
+
           IconButton(
             icon: Icon(Icons.link, color: cs.primary),
             onPressed: () => launchUrl(Uri.parse(linkedin)),
@@ -257,7 +269,10 @@ class SettingsScreen extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Settings")),
+      appBar: AppBar(
+        title: const Text("Settings"),
+        automaticallyImplyLeading: false,
+      ),
       body: ListView(
         children: [
           SwitchListTile(
@@ -265,7 +280,9 @@ class SettingsScreen extends StatelessWidget {
             value: themeProvider.isDarkMode,
             onChanged: (value) => themeProvider.toggleTheme(value),
           ),
+
           const Divider(),
+
           ListTile(
             leading: CircleAvatar(
               backgroundColor: cs.primary,
@@ -275,6 +292,7 @@ class SettingsScreen extends StatelessWidget {
             subtitle: const Text("Meet the team behind STEMLY"),
             onTap: () => _showAboutSheet(context),
           ),
+
           ListTile(
             leading: Icon(Icons.feedback_outlined, color: cs.primary),
             title: const Text("Send Feedback"),
@@ -289,6 +307,7 @@ class SettingsScreen extends StatelessWidget {
               );
             },
           ),
+
           ListTile(
             leading: Icon(Icons.star_rate_rounded, color: Colors.amber),
             title: const Text("Rate the App"),
@@ -303,35 +322,21 @@ class SettingsScreen extends StatelessWidget {
               );
             },
           ),
+
           ListTile(
             leading: Icon(Icons.privacy_tip_outlined, color: cs.primary),
             title: const Text("Privacy Policy"),
-            onTap: () {
-              _openInfoSheet(
-                context,
-                title: "Privacy Policy",
-                message:
-                    "Review our privacy practices and learn how we protect your data.",
-                buttonText: "Open Policy",
-                onPressed: _openPrivacy,
-              );
-            },
+            onTap: () => Navigator.pushNamed(context, '/privacy'),
           ),
+
           ListTile(
             leading: Icon(Icons.article_outlined, color: cs.primary),
             title: const Text("Terms & Conditions"),
-            onTap: () {
-              _openInfoSheet(
-                context,
-                title: "Terms & Conditions",
-                message: "Read the terms governing your use of the app.",
-                buttonText: "View Terms",
-                onPressed: _openTerms,
-              );
-            },
+            onTap: () => Navigator.pushNamed(context, '/terms'),
           ),
         ],
       ),
+
       bottomNavigationBar: const BottomNavBar(currentIndex: 2),
     );
   }

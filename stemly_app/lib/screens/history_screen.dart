@@ -40,13 +40,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final cs = theme.colorScheme;
 
     final deepBlue = cs.primary;
-    final blueShade = cs.secondary;
     final scaffoldColor = theme.scaffoldBackgroundColor;
 
     return Scaffold(
       backgroundColor: scaffoldColor,
 
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: Text(
           "Scan History",
           style: TextStyle(
@@ -56,29 +56,22 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ),
         centerTitle: true,
         backgroundColor: theme.cardColor,
-        elevation: 0.5,
+        elevation: 0.4,
 
         actions: [
-          TextButton(
-            onPressed: _clearNonStarred,
-            child: const Text(
-              "Clear",
-              style: TextStyle(color: Colors.red, fontSize: 16),
+          if (history.isNotEmpty)
+            TextButton(
+              onPressed: _clearNonStarred,
+              child: const Text(
+                "Clear",
+                style: TextStyle(color: Colors.red, fontSize: 16),
+              ),
             ),
-          ),
         ],
       ),
 
       body: history.isEmpty
-          ? Center(
-              child: Text(
-                "No scan history yet",
-                style: TextStyle(
-                  fontSize: 18,
-                  color: theme.colorScheme.onBackground.withOpacity(0.7),
-                ),
-              ),
-            )
+          ? _emptyState(theme)
           : ListView.builder(
               physics: const BouncingScrollPhysics(),
               itemCount: history.length,
@@ -119,7 +112,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         duration: const Duration(seconds: 5),
                         action: SnackBarAction(
                           label: "UNDO",
-                          textColor: blueShade,
+                          textColor: deepBlue,
                           onPressed: () {
                             HistoryStore.history.insert(removedIndex, removed);
                             HistoryStore.setHistory(HistoryStore.history);
@@ -149,21 +142,41 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  // DELETE BG
-  Widget _deleteBg({required bool left}) {
-    return Container(
-      color: Colors.red,
-      alignment: left ? Alignment.centerLeft : Alignment.centerRight,
-      padding: EdgeInsets.only(left: left ? 20 : 0, right: left ? 0 : 20),
-      child: const Icon(Icons.delete, color: Colors.white),
+  // ---------------- EMPTY STATE ----------------
+  Widget _emptyState(ThemeData theme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Text(
+          "No scan history yet.\nScan something to get started!",
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 18,
+            height: 1.4,
+            color: theme.colorScheme.onBackground.withOpacity(0.65),
+          ),
+        ),
+      ),
     );
   }
 
-  // HISTORY CARD
+  // ---------------- DELETE BACKGROUND ----------------
+  Widget _deleteBg({required bool left}) {
+    return Container(
+      color: Colors.redAccent,
+      alignment: left ? Alignment.centerLeft : Alignment.centerRight,
+      padding: EdgeInsets.only(left: left ? 20 : 0, right: left ? 0 : 20),
+      child: const Icon(Icons.delete, color: Colors.white, size: 26),
+    );
+  }
+
+  // ---------------- HISTORY CARD ----------------
   Widget _historyCard(h, Color deepBlue, ThemeData theme) {
     final cs = theme.colorScheme;
 
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -171,35 +184,37 @@ class _HistoryScreenState extends State<HistoryScreen> {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: cs.shadow.withOpacity(0.15),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: cs.shadow.withOpacity(0.12),
+            blurRadius: 12,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
 
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // THUMBNAIL
-          Container(
-            height: 56,
-            width: 56,
-            decoration: BoxDecoration(
-              color: deepBlue,
-              shape: BoxShape.circle,
-            ),
-            child: ClipOval(
-              child: Image.file(
-                File(h.imagePath),
-                fit: BoxFit.cover,
+          Hero(
+            tag: h.imagePath,
+            child: Container(
+              height: 56,
+              width: 56,
+              decoration: BoxDecoration(
+                color: deepBlue,
+                shape: BoxShape.circle,
+              ),
+              child: ClipOval(
+                child: Image.file(
+                  File(h.imagePath),
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
           ),
 
           const SizedBox(width: 14),
 
-          // TEXT
+          // TEXTS
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -214,6 +229,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     color: deepBlue,
                   ),
                 ),
+
                 const SizedBox(height: 6),
 
                 Text(
@@ -222,6 +238,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 14,
+                    height: 1.2,
                     color: cs.onSurface.withOpacity(0.7),
                   ),
                 ),
