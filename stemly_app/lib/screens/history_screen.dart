@@ -36,15 +36,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget build(BuildContext context) {
     final history = HistoryStore.history;
 
-    const deepBlue = Color(0xFF003A70);
-    const blueShade = Color(0xFF60ABF1);
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    final deepBlue = cs.primary;
+    final scaffoldColor = theme.scaffoldBackgroundColor;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: scaffoldColor,
 
-      // ---------------- APP BAR ----------------
       appBar: AppBar(
-        title: const Text(
+        automaticallyImplyLeading: false,
+        title: Text(
           "Scan History",
           style: TextStyle(
             color: deepBlue,
@@ -52,28 +55,23 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
         ),
         centerTitle: true,
-        backgroundColor: Colors.white,
-        elevation: 0.5,
+        backgroundColor: theme.cardColor,
+        elevation: 0.4,
 
         actions: [
-          TextButton(
-            onPressed: _clearNonStarred,
-            child: const Text(
-              "Clear",
-              style: TextStyle(color: Colors.red, fontSize: 16),
+          if (history.isNotEmpty)
+            TextButton(
+              onPressed: _clearNonStarred,
+              child: const Text(
+                "Clear",
+                style: TextStyle(color: Colors.red, fontSize: 16),
+              ),
             ),
-          ),
         ],
       ),
 
-      // ---------------- BODY ----------------
       body: history.isEmpty
-          ? const Center(
-              child: Text(
-                "No scan history yet",
-                style: TextStyle(fontSize: 18, color: Colors.black54),
-              ),
-            )
+          ? _emptyState(theme)
           : ListView.builder(
               physics: const BouncingScrollPhysics(),
               itemCount: history.length,
@@ -106,17 +104,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     setState(() {});
 
                     final messenger = ScaffoldMessenger.of(context);
-
                     messenger.hideCurrentSnackBar();
+
                     messenger.showSnackBar(
                       SnackBar(
                         content: Text("Deleted '${removed.topic}'"),
                         duration: const Duration(seconds: 5),
-
-                        // 🔵 Blue UI shade for UNDO
                         action: SnackBarAction(
                           label: "UNDO",
-                          textColor: blueShade,
+                          textColor: deepBlue,
                           onPressed: () {
                             HistoryStore.history.insert(removedIndex, removed);
                             HistoryStore.setHistory(HistoryStore.history);
@@ -125,11 +121,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         ),
                       ),
                     );
-
-                    // Auto-hide after 5 seconds
-                    Future.delayed(const Duration(seconds: 5), () {
-                      if (mounted) messenger.hideCurrentSnackBar();
-                    });
                   },
 
                   child: GestureDetector(
@@ -141,7 +132,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         ),
                       ).then((_) => setState(() {}));
                     },
-                    child: _historyCard(h),
+                    child: _historyCard(h, deepBlue, theme),
                   ),
                 );
               },
@@ -151,57 +142,79 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
+  // ---------------- EMPTY STATE ----------------
+  Widget _emptyState(ThemeData theme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Text(
+          "No scan history yet.\nScan something to get started!",
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 18,
+            height: 1.4,
+            color: theme.colorScheme.onBackground.withOpacity(0.65),
+          ),
+        ),
+      ),
+    );
+  }
+
   // ---------------- DELETE BACKGROUND ----------------
   Widget _deleteBg({required bool left}) {
     return Container(
-      color: Colors.red,
+      color: Colors.redAccent,
       alignment: left ? Alignment.centerLeft : Alignment.centerRight,
       padding: EdgeInsets.only(left: left ? 20 : 0, right: left ? 0 : 20),
-      child: const Icon(Icons.delete, color: Colors.white),
+      child: const Icon(Icons.delete, color: Colors.white, size: 26),
     );
   }
 
   // ---------------- HISTORY CARD ----------------
-  Widget _historyCard(h) {
-    const deepBlue = Color(0xFF003A70);
+  Widget _historyCard(h, Color deepBlue, ThemeData theme) {
+    final cs = theme.colorScheme;
 
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFE8F3FF),
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: cs.shadow.withOpacity(0.12),
+            blurRadius: 12,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
 
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // THUMBNAIL
-          Container(
-            height: 56,
-            width: 56,
-            decoration: BoxDecoration(
-              color: deepBlue,
-              shape: BoxShape.circle,
-            ),
-            child: ClipOval(
-              child: Image.file(
-                File(h.imagePath),
-                fit: BoxFit.cover,
+          Hero(
+            tag: h.imagePath,
+            child: Container(
+              height: 56,
+              width: 56,
+              decoration: BoxDecoration(
+                color: deepBlue,
+                shape: BoxShape.circle,
+              ),
+              child: ClipOval(
+                child: Image.file(
+                  File(h.imagePath),
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
           ),
 
           const SizedBox(width: 14),
 
-          // TEXT CONTENT
+          // TEXTS
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -210,27 +223,30 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   h.topic,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
                     color: deepBlue,
                   ),
                 ),
+
                 const SizedBox(height: 6),
+
                 Text(
                   "Variables: ${h.variables.join(', ')}",
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
-                    color: Color(0xFF4B6378),
+                    height: 1.2,
+                    color: cs.onSurface.withOpacity(0.7),
                   ),
                 ),
               ],
             ),
           ),
 
-          // ⭐ STAR ICON (YELLOW)
+          // STAR
           IconButton(
             icon: Icon(
               h.isStarred ? Icons.star : Icons.star_border,

@@ -96,21 +96,24 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
     return Stack(
       children: [
-        _buildMainUI(),
+        _buildMainUI(theme, cs),
         if (loading)
           Container(
-            color: Colors.black54,
+            color: Colors.black45,
             child: const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(color: Colors.white),
+                  CircularProgressIndicator(strokeWidth: 3),
                   SizedBox(height: 20),
                   Text(
                     "Analyzing Image...",
-                    style: TextStyle(color: Colors.white, fontSize: 18),
+                    style: TextStyle(fontSize: 18),
                   )
                 ],
               ),
@@ -120,43 +123,62 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  Widget _buildMainUI() {
+  Widget _buildMainUI(ThemeData theme, ColorScheme cs) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: theme.scaffoldBackgroundColor,
+
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        backgroundColor: Colors.white,
-        elevation: 0,
-        foregroundColor: Colors.black,
+        backgroundColor: theme.cardColor,
+        foregroundColor: cs.onSurface,
+        elevation: 0.4,
+        title: Text(
+          "STEMLY",
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            color: cs.primary,
+            fontSize: 22,
+          ),
+        ),
+        centerTitle: true,
       ),
+
       body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 22),
           child: Column(
             children: [
-              const SizedBox(height: 20),
-              const Text(
-                "STEMLY",
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 26),
-              const Text(
-                "Scan → Get Mission →\nLearn Visually",
+              const SizedBox(height: 24),
+
+              Text(
+                "Scan → Visualize → Learn",
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: Colors.black54),
+                style: TextStyle(
+                  fontSize: 17,
+                  color: cs.onBackground.withOpacity(0.7),
+                  height: 1.3,
+                ),
               ),
+
               const SizedBox(height: 40),
-              _scanBox(),
-              const SizedBox(height: 50),
+
+              Hero(
+                tag: "scanBtn",
+                child: _scanBox(theme, cs),
+              ),
+
+              const SizedBox(height: 40),
             ],
           ),
         ),
       ),
+
       bottomNavigationBar: const BottomNavBar(currentIndex: 0),
     );
   }
 
-  Widget _scanBox() {
+  Widget _scanBox(ThemeData theme, ColorScheme cs) {
     return Center(
       child: SizedBox(
         width: MediaQuery.of(context).size.width * 0.65,
@@ -164,26 +186,40 @@ class _MainScreenState extends State<MainScreen> {
           aspectRatio: 1,
           child: GestureDetector(
             onTap: _openCamera,
-            child: Container(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 260),
+              curve: Curves.easeOut,
               decoration: BoxDecoration(
-                color: const Color(0xFFD8ECFF),
+                color: cs.primaryContainer,
                 borderRadius: BorderRadius.circular(22),
+                boxShadow: [
+                  BoxShadow(
+                    color: cs.shadow.withOpacity(0.15),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
               ),
+
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
+                children: [
                   CircleAvatar(
                     radius: 45,
-                    backgroundColor: Color(0xFF003A70),
-                    child: Icon(Icons.camera_alt, color: Colors.white, size: 60),
+                    backgroundColor: cs.primary,
+                    child: Icon(
+                      Icons.camera_alt,
+                      color: cs.onPrimary,
+                      size: 62,
+                    ),
                   ),
-                  SizedBox(height: 18),
+                  const SizedBox(height: 20),
                   Text(
                     "Scan to Learn",
                     style: TextStyle(
                       fontSize: 20,
-                      color: Color(0xFF003A70),
-                      fontWeight: FontWeight.w600,
+                      color: cs.primary,
+                      fontWeight: FontWeight.w700,
                     ),
                   )
                 ],
