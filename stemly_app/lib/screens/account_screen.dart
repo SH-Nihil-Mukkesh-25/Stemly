@@ -64,59 +64,53 @@ class _ProfileView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = authService.currentUser;
-    if (user == null) {
-      return const SizedBox.shrink();
-    }
+    if (user == null) return const SizedBox.shrink();
 
-    final cardColor = Theme.of(context).cardColor;
     final textTheme = Theme.of(context).textTheme;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
+        // Profile Picture
         CircleAvatar(
           radius: 48,
-          backgroundImage: user.photoURL != null ? NetworkImage(user.photoURL!) : null,
-          child: user.photoURL == null ? const Icon(Icons.person, size: 48) : null,
+          backgroundImage:
+              user.photoURL != null ? NetworkImage(user.photoURL!) : null,
+          child: user.photoURL == null
+              ? const Icon(Icons.person, size: 48)
+              : null,
         ),
+
         const SizedBox(height: 16),
-        Text(user.displayName ?? "Unnamed Stemly Learner", style: textTheme.titleLarge),
-        Text(user.email ?? "", style: textTheme.bodyMedium),
-        const SizedBox(height: 32),
-        Card(
-          color: cardColor,
-          elevation: 0.8,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.verified_user),
-                  title: const Text("Firebase UID"),
-                  subtitle: Text(user.uid),
-                ),
-                const Divider(),
-                ListTile(
-                  leading: const Icon(Icons.schedule),
-                  title: const Text("Last login"),
-                  subtitle: Text(
-                    user.metadata.lastSignInTime?.toLocal().toString() ?? "Unknown",
-                  ),
-                ),
-              ],
-            ),
-          ),
+
+        // Display Name
+        Text(
+          user.displayName ?? "Unnamed Stemly Learner",
+          style: textTheme.titleLarge,
         ),
+
+        // Email
+        Text(
+          user.email ?? "",
+          style: textTheme.bodyMedium,
+        ),
+
+        const SizedBox(height: 32),
+
+        // Removed UID + Last Login section completely ✨
+
         const Spacer(),
+
+        // Logout Button
         ElevatedButton.icon(
           onPressed: () async => authService.signOut(),
           icon: const Icon(Icons.logout),
           label: const Text("Logout"),
           style: ElevatedButton.styleFrom(
             minimumSize: const Size.fromHeight(48),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         ),
       ],

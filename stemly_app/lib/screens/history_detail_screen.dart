@@ -1,8 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../models/scan_history.dart';
-import '../storage/history_store.dart';
-import '../widgets/bottom_nav_bar.dart'; // ← ADD THIS
+import '../widgets/bottom_nav_bar.dart';
 
 class HistoryDetailScreen extends StatefulWidget {
   final ScanHistory history;
@@ -31,8 +30,9 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
+    // ✔ Updated color set to match ScanResultScreen
     final deepBlue = cs.primary;
-    final lightBlue = cs.secondary.withOpacity(0.2);
+    final primaryColor = cs.primaryContainer; // replaces old lightBlue
     final background = theme.scaffoldBackgroundColor;
     final cardColor = theme.cardColor;
 
@@ -40,14 +40,10 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
       length: 2,
       child: Scaffold(
         backgroundColor: background,
-
-        // ------------------------------
-        // CURVED BOTTOM NAV BAR ADDED
-        // ------------------------------
         bottomNavigationBar: BottomNavBar(currentIndex: 1),
 
         appBar: AppBar(
-          backgroundColor: lightBlue,
+          backgroundColor: primaryColor, // ✔ updated
           elevation: 0,
           iconTheme: IconThemeData(color: deepBlue),
 
@@ -82,7 +78,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
               padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 14),
               child: Container(
                 decoration: BoxDecoration(
-                  color: deepBlue.withOpacity(0.15),
+                  color: deepBlue.withOpacity(0.12), // ✔ matches ScanResultScreen
                   borderRadius: BorderRadius.circular(30),
                 ),
                 child: TabBar(
@@ -126,12 +122,13 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // IMAGE CONTAINER
           Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(18),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.20),
+                  color: Colors.black.withOpacity(0.08), // ✔ updated shadow color
                   blurRadius: 14,
                   offset: const Offset(0, 6),
                 ),
@@ -194,7 +191,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     );
   }
 
-  // ---------------- OTHER HELPERS (unchanged) ----------------
+  // ---------------- EXPANDABLE CARD ----------------
   Widget _expandableCard({
     required String title,
     required bool expanded,
@@ -211,7 +208,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.10),
+            color: Colors.black.withOpacity(0.08), // ✔ updated shadow
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -259,31 +256,38 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     );
   }
 
+  // ---------------- HELPERS ----------------
   Widget _buildContent(dynamic value, Color deepBlue) {
     if (value is String) {
       return Text(value, style: TextStyle(fontSize: 15, color: deepBlue));
     }
+
     if (value is List) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: value
-            .map((e) => Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Text("• $e",
-                      style: TextStyle(fontSize: 15, color: deepBlue)),
-                ))
+            .map(
+              (e) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text("• $e",
+                    style: TextStyle(fontSize: 15, color: deepBlue)),
+              ),
+            )
             .toList(),
       );
     }
+
     if (value is Map) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: value.entries
-            .map((e) => Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Text("${e.key}: ${e.value}",
-                      style: TextStyle(fontSize: 15, color: deepBlue)),
-                ))
+            .map(
+              (e) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text("${e.key}: ${e.value}",
+                    style: TextStyle(fontSize: 15, color: deepBlue)),
+              ),
+            )
             .toList(),
       );
     }
