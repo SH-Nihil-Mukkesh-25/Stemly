@@ -2,6 +2,8 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:stemly_app/visualiser/kinematics_component.dart';
+import 'package:stemly_app/visualiser/optics_component.dart';
 
 import '../visualiser/projectile_motion.dart';
 import '../visualiser/free_fall_component.dart';
@@ -28,11 +30,11 @@ class ScanResultScreen extends StatefulWidget {
 
 class _ScanResultScreenState extends State<ScanResultScreen> {
   final Map<String, bool> expanded = {};
-
+  
   VisualTemplate? visualiserTemplate;
   Widget? visualiserWidget;
   bool loadingVisualiser = true;
-
+  
   final String serverIp = "http://10.0.2.2:8000";
 
   @override
@@ -43,56 +45,74 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
     }
     _loadVisualiser();
   }
-
+  
   Future<void> _loadVisualiser() async {
     setState(() => loadingVisualiser = true);
-
+    
     try {
       final url = Uri.parse('$serverIp/visualiser/generate');
       final response = await http.post(
         url,
-        headers: {"Content-Type": "application/json"},
+        headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          "topic": widget.topic,
-          "variables": widget.variables,
+          'topic': widget.topic,
+          'variables': widget.variables,
         }),
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final templateJson = data["template"];
+        final templateJson = data['template'] as Map<String, dynamic>;
         final template = VisualTemplate.fromJson(templateJson);
 
-        final id = template.templateId.toLowerCase();
+        final templateId = template.templateId.toLowerCase();
+        Widget? newWidget;
 
-        if (id.contains("projectile")) {
-          final p = template.parameters;
-          visualiserWidget = ProjectileMotionWidget(
-            U: p["U"]!.value,
-            theta: p["theta"]!.value,
-            g: p["g"]!.value,
+        final p = template.parameters;
+        double getVal(String key) => p[key]?.value ?? 0.0;
+
+        if (templateId.contains('projectile')) {
+          newWidget = ProjectileMotionWidget(
+            U: getVal('U'),
+            theta: getVal('theta'),
+            g: getVal('g'),
           );
-        } else if (id.contains("free") || id.contains("fall")) {
-          final p = template.parameters;
-          visualiserWidget = FreeFallWidget(
-            h: p["h"]!.value,
-            g: p["g"]!.value,
+        } else if (templateId.contains('free') || templateId.contains('fall')) {
+          newWidget = FreeFallWidget(
+            h: getVal('h'),
+            g: getVal('g'),
           );
-        } else if (id.contains("shm")) {
-          final p = template.parameters;
-          visualiserWidget = SHMWidget(
-            A: p["A"]!.value,
-            m: p["m"]!.value,
-            k: p["k"]!.value,
+        } else if (templateId.contains('shm')) {
+          newWidget = SHMWidget(
+            A: getVal('A'),
+            m: getVal('m'),
+            k: getVal('k'),
+          );
+        } else if (templateId.contains('kinematics')) {
+          newWidget = KinematicsWidget(
+            u: getVal('u'),
+            a: getVal('a'),
+            tMax: getVal('t_max'),
+          );
+        } else if (templateId.contains('optics')) {
+          newWidget = OpticsWidget(
+            f: getVal('f'),
+            u: getVal('u'),
+            h_o: getVal('h_o'),
           );
         }
 
-        visualiserTemplate = template;
+        if (mounted) {
+          setState(() {
+            visualiserTemplate = template;
+            visualiserWidget = newWidget;
+            loadingVisualiser = false;
+          });
+        }
+      } else {
+        setState(() => loadingVisualiser = false);
       }
-
-      setState(() => loadingVisualiser = false);
     } catch (e) {
-      print("Error: $e");
       setState(() => loadingVisualiser = false);
     }
   }
@@ -112,51 +132,72 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       child: Scaffold(
         backgroundColor: background,
 
-        // -----------------------------------------------------
-        //  UPDATED APPBAR → SAME AS HistoryDetailScreen
-        // -----------------------------------------------------
+        // ---------------------------------------------------------
+        // NEW POLISHED APP BAR
+        // ---------------------------------------------------------
         appBar: AppBar(
-          backgroundColor: primaryColor,
           elevation: 0,
+          backgroundColor: primaryColor,
           iconTheme: IconThemeData(color: deepBlue),
 
           title: Text(
             "Scan Result",
             style: TextStyle(
               color: deepBlue,
-              fontWeight: FontWeight.w600,
-              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              fontSize: 22,
+              letterSpacing: 0.3,
+            ),
+          ),
+          centerTitle: true,
+
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(
+              bottom: Radius.circular(26),
             ),
           ),
 
           bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(55),
-            child: Container(
-              alignment: Alignment.center,
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 14),
+            preferredSize: const Size.fromHeight(65),
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 10, left: 16, right: 16),
               child: Container(
+                height: 48,
                 decoration: BoxDecoration(
-                  color: deepBlue.withOpacity(0.12),
+                  color: deepBlue.withOpacity(0.10),
                   borderRadius: BorderRadius.circular(30),
                 ),
                 child: TabBar(
                   dividerColor: Colors.transparent,
+                  labelColor: Colors.white,
+                  unselectedLabelColor: deepBlue.withOpacity(0.7),
 
                   indicator: BoxDecoration(
-                    color: deepBlue,
                     borderRadius: BorderRadius.circular(30),
+                    gradient: LinearGradient(
+                      colors: [
+                        deepBlue,
+                        deepBlue.withOpacity(0.85),
+                      ],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: deepBlue.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      )
+                    ],
                   ),
 
                   indicatorSize: TabBarIndicatorSize.tab,
-                  labelColor: cs.onPrimary,
-                  unselectedLabelColor: deepBlue,
-
                   labelStyle: const TextStyle(
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w700,
                     fontSize: 15,
                   ),
-
-                  unselectedLabelStyle: const TextStyle(fontSize: 14),
+                  unselectedLabelStyle: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
 
                   tabs: const [
                     Tab(text: "AI Visualiser"),
@@ -168,9 +209,9 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
           ),
         ),
 
-        // -----------------------------------------------------
+        // ---------------------------------------------------------
         // BODY
-        // -----------------------------------------------------
+        // ---------------------------------------------------------
         body: TabBarView(
           children: [
             _visualiser(deepBlue),
@@ -181,12 +222,13 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
     );
   }
 
-  // -----------------------------------------------------
+  // ---------------------------------------------------------
   // VISUALISER UI
-  // -----------------------------------------------------
+  // ---------------------------------------------------------
   Widget _visualiser(Color deepBlue) {
+    final theme = Theme.of(context);
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -196,60 +238,194 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
             decoration: BoxDecoration(
               color: Colors.black.withOpacity(0.05),
               borderRadius: BorderRadius.circular(18),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.12),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(18),
               child: loadingVisualiser
                   ? const Center(child: CircularProgressIndicator())
-                  : visualiserWidget ?? _noVisualiserUI(deepBlue),
+                  : visualiserWidget,
             ),
           ),
-          const SizedBox(height: 30),
 
+          const SizedBox(height: 24),
           _title("Topic", deepBlue),
           _value(widget.topic, deepBlue),
-          const SizedBox(height: 20),
 
+          const SizedBox(height: 20),
           _title("Variables", deepBlue),
           _value(widget.variables.join(", "), deepBlue),
+
+          const SizedBox(height: 30),
+          _title("Chat with AI", deepBlue),
+          const SizedBox(height: 10),
+          _buildChatInterface(deepBlue, theme.cardColor),
         ],
       ),
     );
   }
 
-  Widget _noVisualiserUI(Color deepBlue) {
-    return Center(
+  // ---------------------------------------------------------
+  // CHAT INTERFACE
+  // ---------------------------------------------------------
+  final TextEditingController _chatController = TextEditingController();
+  final List<Map<String, String>> _chatMessages = [];
+  bool _isSendingMessage = false;
+
+  Widget _buildChatInterface(Color deepBlue, Color cardColor) {
+    return Container(
+      height: 300,
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(18),
+      ),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.animation, size: 48, color: deepBlue.withOpacity(0.5)),
-          const SizedBox(height: 12),
-          Text(
-            'No visualisation available\nfor "${widget.topic}"',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: deepBlue.withOpacity(0.7),
-              fontSize: 14,
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: _chatMessages.length,
+              itemBuilder: (context, index) {
+                final msg = _chatMessages[index];
+                final isUser = msg['role'] == 'user';
+
+                return Align(
+                  alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: isUser ? deepBlue : deepBlue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      msg['content']!,
+                      style: TextStyle(
+                        color: isUser ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
+
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(18)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _chatController,
+                    decoration: InputDecoration(
+                      hintText: "Ask something…",
+                      border: InputBorder.none,
+                    ),
+                    onSubmitted: (_) => _sendMessage(),
+                  ),
+                ),
+                IconButton(
+                  icon: _isSendingMessage
+                      ? SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: deepBlue),
+                        )
+                      : Icon(Icons.send, color: deepBlue),
+                  onPressed: _isSendingMessage ? null : _sendMessage,
+                ),
+              ],
+            ),
+          )
         ],
       ),
     );
   }
 
-  // -----------------------------------------------------
-  // NOTES UI (same style as history)
-  // -----------------------------------------------------
+  Future<void> _sendMessage() async {
+    final text = _chatController.text.trim();
+    if (text.isEmpty) return;
+
+    setState(() {
+      _chatMessages.add({'role': 'user', 'content': text});
+      _isSendingMessage = true;
+      _chatController.clear();
+    });
+
+    try {
+      final currentParams = <String, dynamic>{};
+      if (visualiserTemplate != null) {
+        visualiserTemplate!.parameters.forEach((k, v) => currentParams[k] = v.value);
+      }
+
+      final res = await http.post(
+        Uri.parse("$serverIp/visualiser/update"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "template_id": visualiserTemplate?.templateId ?? "",
+          "parameters": currentParams,
+          "user_prompt": text,
+        }),
+      );
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final params = data['parameters'] as Map<String, dynamic>;
+        final aiResponse = data['ai_response'];
+
+        _updateVisualiserWidget(visualiserTemplate!.templateId, params);
+
+        setState(() {
+          _chatMessages.add({'role': 'ai', 'content': aiResponse});
+          _isSendingMessage = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _chatMessages.add({'role': 'ai', 'content': "Connection failed"});
+        _isSendingMessage = false;
+      });
+    }
+  }
+
+  void _updateVisualiserWidget(String templateId, Map<String, dynamic> params) {
+    double getVal(String k) =>
+        (params[k] is num) ? (params[k] as num).toDouble() : 0.0;
+
+    Widget? newWidget;
+    final id = templateId.toLowerCase();
+
+    if (id.contains("projectile")) {
+      newWidget = ProjectileMotionWidget(
+        U: getVal("U"),
+        theta: getVal("theta"),
+        g: getVal("g"),
+      );
+    } else if (id.contains("free")) {
+      newWidget = FreeFallWidget(
+        h: getVal("h"),
+        g: getVal("g"),
+      );
+    } else if (id.contains("shm")) {
+      newWidget = SHMWidget(
+        A: getVal("A"),
+        m: getVal("m"),
+        k: getVal("k"),
+      );
+    }
+
+    setState(() => visualiserWidget = newWidget);
+  }
+
+  // ---------------------------------------------------------
+  // NOTES
+  // ---------------------------------------------------------
   Widget _notes(Color cardColor, Color deepBlue) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       child: Column(
         children: widget.notesJson.entries.map((entry) {
           final key = entry.key;
@@ -257,9 +433,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
           return _expandableCard(
             title: _formatKey(key),
             expanded: expanded[key]!,
-            onTap: () => setState(() {
-              expanded[key] = !expanded[key]!;
-            }),
+            onTap: () => setState(() => expanded[key] = !expanded[key]!),
             child: _buildContent(entry.value, deepBlue),
             cardColor: cardColor,
             deepBlue: deepBlue,
@@ -283,13 +457,6 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Column(
         children: [
@@ -311,9 +478,9 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                   ),
                   Icon(
                     expanded
-                        ? Icons.keyboard_arrow_up
-                        : Icons.keyboard_arrow_down,
-                    size: 28,
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    size: 30,
                     color: deepBlue,
                   ),
                 ],
@@ -327,33 +494,26 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                 ? CrossFadeState.showSecond
                 : CrossFadeState.showFirst,
             firstChild: const SizedBox.shrink(),
-            secondChild: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              child: child,
-            ),
+            secondChild:
+                Padding(padding: const EdgeInsets.all(14), child: child),
           ),
         ],
       ),
     );
   }
 
-  // -----------------------------------------------------
-  // HELPERS
-  // -----------------------------------------------------
   Widget _buildContent(dynamic value, Color deepBlue) {
     if (value is String) {
-      return Text(value,
-          style: TextStyle(fontSize: 15, color: deepBlue));
+      return Text(value, style: TextStyle(fontSize: 15, color: deepBlue));
     }
 
     if (value is List) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: value
-            .map((e) => Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Text("• $e",
+            .map((v) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text("• $v",
                       style: TextStyle(fontSize: 15, color: deepBlue)),
                 ))
             .toList(),
@@ -365,7 +525,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: value.entries
             .map((e) => Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
+                  padding: const EdgeInsets.only(bottom: 8),
                   child: Text("${e.key}: ${e.value}",
                       style: TextStyle(fontSize: 15, color: deepBlue)),
                 ))

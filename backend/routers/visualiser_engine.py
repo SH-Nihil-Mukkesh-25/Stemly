@@ -53,15 +53,18 @@ async def update_visualiser(req: VisualiserUpdateRequest):
     if req.user_prompt and req.user_prompt.strip():
         try:
             from services.ai_visualiser import adjust_parameters_with_ai
-            updated = await adjust_parameters_with_ai(
+            ai_result = await adjust_parameters_with_ai(
                 req.template_id,
                 req.parameters,
                 req.user_prompt
             )
-        except (ImportError, NotImplementedError, AttributeError):
-            # AI updates not implemented yet - skip gracefully
-            print("⚠ AI visualiser not implemented, skipping parameter updates")
+            updated = ai_result.get("updated_parameters", {})
+            ai_response = ai_result.get("ai_response", "Updated parameters.")
+            print(f"🤖 AI Updates: {updated}")
+        except Exception as e:
+            print(f"⚠ AI Update Error: {e}")
             updated = {}
+            ai_response = "Sorry, I encountered an error processing your request."
 
     merged = dict(req.parameters)
     merged.update(updated)
@@ -76,7 +79,8 @@ async def update_visualiser(req: VisualiserUpdateRequest):
     return {
         "template_id": req.template_id,
         "parameters": merged,
-        "ai_updates": updated
+        "ai_updates": updated,
+        "ai_response": ai_response
     }
 
 
