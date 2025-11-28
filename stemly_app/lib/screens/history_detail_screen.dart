@@ -1,7 +1,15 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+
 import '../models/scan_history.dart';
 import '../widgets/bottom_nav_bar.dart';
+
+import '../visualiser/projectile_motion.dart';
+import '../visualiser/free_fall_component.dart';
+import '../visualiser/shm_component.dart';
+import '../visualiser/visualiser_models.dart';
 
 class HistoryDetailScreen extends StatefulWidget {
   final ScanHistory history;
@@ -15,12 +23,72 @@ class HistoryDetailScreen extends StatefulWidget {
 class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
   final Map<String, bool> expanded = {};
 
+  VisualTemplate? visualiserTemplate;
+  Widget? visualiserWidget;
+  bool loading = true;
+
+  final serverIp = "http://10.0.2.2:8000";
+
   @override
   void initState() {
     super.initState();
+
     for (var key in widget.history.notesJson.keys) {
       expanded[key] = false;
     }
+
+    _loadVisualiser();
+  }
+
+  Future<void> _loadVisualiser() async {
+    setState(() => loading = true);
+
+    try {
+      final url = Uri.parse("$serverIp/visualiser/generate");
+
+      final response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "topic": widget.history.topic,
+          "variables": widget.history.variables,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final templateJson = data["template"];
+
+        final template = VisualTemplate.fromJson(templateJson);
+        visualiserTemplate = template;
+
+        final id = template.templateId.toLowerCase();
+        final p = template.parameters;
+
+        if (id.contains("projectile")) {
+          visualiserWidget = ProjectileMotionWidget(
+            U: p["U"]!.value,
+            theta: p["theta"]!.value,
+            g: p["g"]!.value,
+          );
+        } else if (id.contains("fall") || id.contains("free")) {
+          visualiserWidget = FreeFallWidget(
+            h: p["h"]!.value,
+            g: p["g"]!.value,
+          );
+        } else if (id.contains("shm")) {
+          visualiserWidget = SHMWidget(
+            A: p["A"]!.value,
+            m: p["m"]!.value,
+            k: p["k"]!.value,
+          );
+        }
+      }
+    } catch (e) {
+      print("History visualiser error: $e");
+    }
+
+    setState(() => loading = false);
   }
 
   @override
@@ -31,7 +99,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     final cs = theme.colorScheme;
 
     final deepBlue = cs.primary;
-    final primaryColor = cs.primaryContainer; // same as scan_result_screen
+    final primaryColor = cs.primaryContainer;
     final background = theme.scaffoldBackgroundColor;
     final cardColor = theme.cardColor;
 
@@ -41,9 +109,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
         backgroundColor: background,
         bottomNavigationBar: BottomNavBar(currentIndex: 1),
 
-        // -----------------------------------------------------
-        // UPDATED APPBAR UI (1:1 same as ScanResultScreen)
-        // -----------------------------------------------------
+        // ---------------- APP BAR (same as ScanResultScreen) ----------------
         appBar: AppBar(
           backgroundColor: primaryColor,
           elevation: 0,
@@ -66,11 +132,9 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                 size: 28,
               ),
               onPressed: () {
-                setState(() {
-                  h.isStarred = !h.isStarred;
-                });
+                setState(() => h.isStarred = !h.isStarred);
               },
-            ),
+            )
           ],
 
           bottom: PreferredSize(
@@ -85,23 +149,17 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                 ),
                 child: TabBar(
                   dividerColor: Colors.transparent,
-
                   indicator: BoxDecoration(
                     color: deepBlue,
                     borderRadius: BorderRadius.circular(30),
                   ),
-
                   indicatorSize: TabBarIndicatorSize.tab,
                   labelColor: cs.onPrimary,
                   unselectedLabelColor: deepBlue,
-
                   labelStyle: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 15,
                   ),
-
-                  unselectedLabelStyle: const TextStyle(fontSize: 14),
-
                   tabs: const [
                     Tab(text: "AI Visualiser"),
                     Tab(text: "AI Notes"),
@@ -112,63 +170,73 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
           ),
         ),
 
-        // -----------------------------------------------------
-        // BODY
-        // -----------------------------------------------------
+        // ---------------- BODY ----------------
         body: TabBarView(
           children: [
-            _visualiser(h, deepBlue),
-            _notes(h, cardColor, deepBlue),
+            _visualiserTab(h, deepBlue),
+            _notesTab(h, cardColor, deepBlue),
           ],
         ),
       ),
     );
   }
 
-  // -----------------------------------------------------
-  // VISUAL TAB
-  // -----------------------------------------------------
-  Widget _visualiser(ScanHistory h, Color deepBlue) {
+  // ---------------- VISUAL TAB ----------------
+  Widget _visualiserTab(ScanHistory h, Color deepBlue) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(22),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // IMAGE DISPLAY CARD
+          // Animation container
           Container(
+            height: 320,
+            width: double.infinity,
             decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.05),
               borderRadius: BorderRadius.circular(18),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.10),
-                  blurRadius: 14,
-                  offset: const Offset(0, 6),
+                  color: Colors.black.withOpacity(0.12),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(18),
-              child: Image.file(
-                File(h.imagePath),
-                height: 260,
-                width: double.infinity,
-                fit: BoxFit.cover,
-              ),
+              child: loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : visualiserWidget ?? _noVisualiser(deepBlue),
             ),
           ),
 
           const SizedBox(height: 30),
+
+          // The scanned image preview
+          ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: Image.file(
+              File(h.imagePath),
+              height: 260,
+              width: double.infinity,
+              fit: BoxFit.cover,
+            ),
+          ),
+
+          const SizedBox(height: 25),
+
           _title("Topic", deepBlue),
           _value(h.topic, deepBlue),
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
 
           _title("Variables", deepBlue),
           _value(h.variables.join(", "), deepBlue),
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
 
           _title("Scanned At", deepBlue),
           _value(
-            "${h.timestamp.day}/${h.timestamp.month}/${h.timestamp.year} "
+            "${h.timestamp.day}/${h.timestamp.month}/${h.timestamp.year}  "
             "${h.timestamp.hour}:${h.timestamp.minute.toString().padLeft(2, '0')}",
             deepBlue,
           ),
@@ -177,36 +245,35 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     );
   }
 
-  // -----------------------------------------------------
-  // NOTES TAB
-  // -----------------------------------------------------
-  Widget _notes(ScanHistory h, Color cardColor, Color deepBlue) {
+  Widget _noVisualiser(Color deepBlue) {
+    return Center(
+      child: Text(
+        "No visualisation available",
+        style: TextStyle(color: deepBlue, fontSize: 16),
+      ),
+    );
+  }
+
+  // ---------------- NOTES TAB ----------------
+  Widget _notesTab(ScanHistory h, Color cardColor, Color deepBlue) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(18),
       child: Column(
         children: h.notesJson.entries.map((entry) {
           final key = entry.key;
-
           return _expandableCard(
             title: _formatKey(key),
             expanded: expanded[key]!,
-            onTap: () {
-              setState(() {
-                expanded[key] = !expanded[key]!;
-              });
-            },
-            child: _buildContent(entry.value, deepBlue),
-            cardColor: cardColor,
+            onTap: () => setState(() => expanded[key] = !expanded[key]!),
+            child: _contentBuilder(entry.value, deepBlue),
             deepBlue: deepBlue,
+            cardColor: cardColor,
           );
         }).toList(),
       ),
     );
   }
 
-  // -----------------------------------------------------
-  // EXPANDABLE CARD
-  // -----------------------------------------------------
   Widget _expandableCard({
     required String title,
     required bool expanded,
@@ -216,7 +283,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     required Color deepBlue,
   }) {
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 260),
+      duration: const Duration(milliseconds: 240),
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: cardColor,
@@ -232,111 +299,90 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
       child: Column(
         children: [
           InkWell(
-            onTap: onTap,
             borderRadius: BorderRadius.circular(18),
+            onTap: onTap,
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: deepBlue,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+                  Text(title,
+                      style: TextStyle(
+                          fontSize: 18,
+                          color: deepBlue,
+                          fontWeight: FontWeight.w700)),
                   Icon(
                     expanded
                         ? Icons.keyboard_arrow_up
                         : Icons.keyboard_arrow_down,
-                    size: 26,
+                    size: 28,
                     color: deepBlue,
                   ),
                 ],
               ),
             ),
           ),
-
           AnimatedCrossFade(
-            duration: const Duration(milliseconds: 260),
-            crossFadeState: expanded
-                ? CrossFadeState.showSecond
-                : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 240),
+            crossFadeState:
+                expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
             firstChild: const SizedBox.shrink(),
-            secondChild: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              child: child,
-            ),
+            secondChild:
+                Padding(padding: const EdgeInsets.all(16), child: child),
           ),
         ],
       ),
     );
   }
 
-  // -----------------------------------------------------
-  // HELPERS
-  // -----------------------------------------------------
-  Widget _buildContent(dynamic value, Color deepBlue) {
+  // ---------------- HELPERS ----------------
+  Widget _contentBuilder(dynamic value, Color deepBlue) {
     if (value is String) {
-      return Text(
-        value,
-        style: TextStyle(fontSize: 15, color: deepBlue),
-      );
+      return Text(value, style: TextStyle(color: deepBlue, fontSize: 15));
     }
-
     if (value is List) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: value
-            .map(
-              (e) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Text(
-                  "• $e",
-                  style: TextStyle(fontSize: 15, color: deepBlue),
-                ),
-              ),
-            )
+            .map((e) => Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text("• $e",
+                      style: TextStyle(color: deepBlue, fontSize: 15)),
+                ))
             .toList(),
       );
     }
-
     if (value is Map) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: value.entries
-            .map(
-              (e) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Text(
-                  "${e.key}: ${e.value}",
-                  style: TextStyle(fontSize: 15, color: deepBlue),
-                ),
-              ),
-            )
+            .map((e) => Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text("${e.key}: ${e.value}",
+                      style: TextStyle(color: deepBlue, fontSize: 15)),
+                ))
             .toList(),
       );
     }
-
     return const Text("Unsupported format");
   }
 
-  Widget _title(String text, Color deepBlue) => Text(
-        text,
+  Widget _title(String t, Color c) => Text(
+        t,
         style: TextStyle(
           fontSize: 22,
+          color: c,
           fontWeight: FontWeight.bold,
-          color: deepBlue,
         ),
       );
 
-  Widget _value(String text, Color deepBlue) => Text(
-        text,
-        style: TextStyle(fontSize: 17, color: deepBlue),
-      );
+  Widget _value(String t, Color c) =>
+      Text(t, style: TextStyle(fontSize: 17, color: c));
 
-  String _formatKey(String raw) =>
-      raw.replaceAll("_", " ").trim().replaceFirst(raw[0], raw[0].toUpperCase());
+  String _formatKey(String raw) {
+    if (raw.isEmpty) return "";
+    return raw
+        .replaceAll("_", " ")
+        .replaceFirst(raw[0], raw[0].toUpperCase());
+  }
 }
