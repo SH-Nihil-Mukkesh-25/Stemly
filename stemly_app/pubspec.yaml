@@ -51,6 +51,7 @@ dependencies:
   firebase_messaging: ^15.2.10
   firebase_crashlytics: ^4.3.10
   firebase_remote_config: ^5.5.0
+  flame: ^1.34.0
 
 dev_dependencies:
   flutter_test:

@@ -1,0 +1,11 @@
+{
+  "template_id": "projectile_motion",
+  "title": "Projectile Motion",
+  "animation_type": "physics_2d",
+  "description": "Parabolic projectile motion. x = U*cos(theta)*t, y = U*sin(theta)*t - 0.5*g*t^2",
+  "parameters": {
+    "U": { "value": 20, "min": 0, "max": 200, "unit": "m/s", "label": "Initial velocity (U)" },
+    "theta": { "value": 45, "min": 0, "max": 90, "unit": "deg", "label": "Launch angle (θ)" },
+    "g": { "value": 9.81, "min": 0.1, "max": 20, "unit": "m/s²", "label": "Gravity (g)" }
+  }
+}

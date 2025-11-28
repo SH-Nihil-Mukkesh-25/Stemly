@@ -1,0 +1,10 @@
+{
+  "template_id": "free_fall",
+  "title": "Free Fall",
+  "animation_type": "physics_1d",
+  "description": "Vertical free fall: y = h - 0.5*g*t^2",
+  "parameters": {
+    "h": { "value": 50, "min": 1, "max": 500, "unit": "m", "label": "Initial height (h)" },
+    "g": { "value": 9.81, "min": 0.1, "max": 20, "unit": "m/s²", "label": "Gravity (g)" }
+  }
+}

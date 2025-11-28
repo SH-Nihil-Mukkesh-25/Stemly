@@ -1,11 +1,11 @@
 import 'dart:io';
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flame/game.dart';
 import 'package:http/http.dart' as http;
 
 import '../visualiser/projectile_motion.dart';
-import '../visualiser/free_fall_component.dart';
-import '../visualiser/shm_component.dart';
 import '../visualiser/visualiser_models.dart';
 
 class ScanResultScreen extends StatefulWidget {
@@ -28,11 +28,13 @@ class ScanResultScreen extends StatefulWidget {
 
 class _ScanResultScreenState extends State<ScanResultScreen> {
   final Map<String, bool> expanded = {};
-
+  
+  // Visualiser state
   VisualTemplate? visualiserTemplate;
-  Widget? visualiserWidget;
+  Game? flameGame;
+  ProjectileComponent? projectileComponent;
   bool loadingVisualiser = true;
-
+  
   final String serverIp = "http://10.0.2.2:8000";
 
   @override
@@ -43,56 +45,54 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
     }
     _loadVisualiser();
   }
-
+  
   Future<void> _loadVisualiser() async {
     setState(() => loadingVisualiser = true);
-
+    
     try {
+      // Call backend to get visualiser template
       final url = Uri.parse('$serverIp/visualiser/generate');
       final response = await http.post(
         url,
-        headers: {"Content-Type": "application/json"},
+        headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          "topic": widget.topic,
-          "variables": widget.variables,
+          'topic': widget.topic,
+          'variables': widget.variables,
         }),
       );
-
+      
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final templateJson = data["template"];
+        final templateJson = data['template'] as Map<String, dynamic>;
         final template = VisualTemplate.fromJson(templateJson);
-
-        final id = template.templateId.toLowerCase();
-
-        if (id.contains("projectile")) {
+        
+        // Create Flame game based on template
+        if (template.animationType.contains('projectile')) {
           final p = template.parameters;
-          visualiserWidget = ProjectileMotionWidget(
-            U: p["U"]!.value,
-            theta: p["theta"]!.value,
-            g: p["g"]!.value,
+          final U = p['U']!.value;
+          final theta = p['theta']!.value;
+          final g = p['g']!.value;
+          
+          final comp = ProjectileComponent(
+            U: U,
+            theta: theta,
+            g: g,
+            position: Vector2(50, 300),
           );
-        } else if (id.contains("free") || id.contains("fall")) {
-          final p = template.parameters;
-          visualiserWidget = FreeFallWidget(
-            h: p["h"]!.value,
-            g: p["g"]!.value,
-          );
-        } else if (id.contains("shm")) {
-          final p = template.parameters;
-          visualiserWidget = SHMWidget(
-            A: p["A"]!.value,
-            m: p["m"]!.value,
-            k: p["k"]!.value,
-          );
+          
+          projectileComponent = comp;
+          flameGame = _VisualiserGame(comp);
         }
-
-        visualiserTemplate = template;
+        
+        setState(() {
+          visualiserTemplate = template;
+          loadingVisualiser = false;
+        });
+      } else {
+        setState(() => loadingVisualiser = false);
       }
-
-      setState(() => loadingVisualiser = false);
     } catch (e) {
-      print("Error: $e");
+      print('Error loading visualiser: $e');
       setState(() => loadingVisualiser = false);
     }
   }
@@ -102,6 +102,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
+    // Dynamic theme values
     final deepBlue = cs.primary;
     final primaryColor = cs.primaryContainer;
     final cardColor = theme.cardColor;
@@ -112,9 +113,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       child: Scaffold(
         backgroundColor: background,
 
-        // -----------------------------------------------------
-        //  UPDATED APPBAR → SAME AS HistoryDetailScreen
-        // -----------------------------------------------------
+        // ---------------- APP BAR ----------------
         appBar: AppBar(
           backgroundColor: primaryColor,
           elevation: 0,
@@ -136,7 +135,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
               padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 14),
               child: Container(
                 decoration: BoxDecoration(
-                  color: deepBlue.withOpacity(0.12),
+                  color: deepBlue.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(30),
                 ),
                 child: TabBar(
@@ -147,15 +146,13 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                     borderRadius: BorderRadius.circular(30),
                   ),
 
-                  indicatorSize: TabBarIndicatorSize.tab,
-                  labelColor: cs.onPrimary,
+                  labelColor: cs.onPrimaryContainer,
                   unselectedLabelColor: deepBlue,
 
                   labelStyle: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 15,
                   ),
-
                   unselectedLabelStyle: const TextStyle(fontSize: 14),
 
                   tabs: const [
@@ -166,30 +163,9 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
               ),
             ),
           ),
-        ),
-
-        // -----------------------------------------------------
-        // BODY
-        // -----------------------------------------------------
-        body: TabBarView(
-          children: [
-            _visualiser(deepBlue),
-            _notes(cardColor, deepBlue),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // -----------------------------------------------------
-  // VISUALISER UI
-  // -----------------------------------------------------
-  Widget _visualiser(Color deepBlue) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(22),
-      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // FLAME ANIMATION CARD
           Container(
             height: 320,
             width: double.infinity,
@@ -198,7 +174,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
               borderRadius: BorderRadius.circular(18),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.12),
+                  color: Colors.black.withOpacity(0.20),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -208,14 +184,32 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
               borderRadius: BorderRadius.circular(18),
               child: loadingVisualiser
                   ? const Center(child: CircularProgressIndicator())
-                  : visualiserWidget ?? _noVisualiserUI(deepBlue),
+                  : flameGame != null
+                      ? GameWidget(game: flameGame!)
+                      : Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.animation, size: 48, color: deepBlue.withOpacity(0.5)),
+                              const SizedBox(height: 12),
+                              Text(
+                                'No visualisation available\nfor "${widget.topic}"',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: deepBlue.withOpacity(0.7),
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
             ),
           ),
-          const SizedBox(height: 30),
+          const SizedBox(height: 28),
 
           _title("Topic", deepBlue),
           _value(widget.topic, deepBlue),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
 
           _title("Variables", deepBlue),
           _value(widget.variables.join(", "), deepBlue),
@@ -224,43 +218,24 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
     );
   }
 
-  Widget _noVisualiserUI(Color deepBlue) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.animation, size: 48, color: deepBlue.withOpacity(0.5)),
-          const SizedBox(height: 12),
-          Text(
-            'No visualisation available\nfor "${widget.topic}"',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: deepBlue.withOpacity(0.7),
-              fontSize: 14,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // -----------------------------------------------------
-  // NOTES UI (same style as history)
-  // -----------------------------------------------------
+  // ---------------- NOTES TAB ----------------
   Widget _notes(Color cardColor, Color deepBlue) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       child: Column(
         children: widget.notesJson.entries.map((entry) {
           final key = entry.key;
+          final value = entry.value;
 
           return _expandableCard(
             title: _formatKey(key),
             expanded: expanded[key]!,
-            onTap: () => setState(() {
-              expanded[key] = !expanded[key]!;
-            }),
-            child: _buildContent(entry.value, deepBlue),
+            onTap: () {
+              setState(() {
+                expanded[key] = !expanded[key]!;
+              });
+            },
+            child: _buildContent(value, deepBlue),
             cardColor: cardColor,
             deepBlue: deepBlue,
           );
@@ -269,6 +244,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
     );
   }
 
+  // ---------------- EXPANDABLE CARD ----------------
   Widget _expandableCard({
     required String title,
     required bool expanded,
@@ -285,8 +261,8 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 8,
+            color: Colors.black.withOpacity(0.12),
+            blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
@@ -297,7 +273,8 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
             borderRadius: BorderRadius.circular(18),
             onTap: onTap,
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+              padding:
+                  const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -311,9 +288,9 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                   ),
                   Icon(
                     expanded
-                        ? Icons.keyboard_arrow_up
-                        : Icons.keyboard_arrow_down,
-                    size: 28,
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    size: 30,
                     color: deepBlue,
                   ),
                 ],
@@ -323,13 +300,11 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
 
           AnimatedCrossFade(
             duration: const Duration(milliseconds: 260),
-            crossFadeState: expanded
-                ? CrossFadeState.showSecond
-                : CrossFadeState.showFirst,
+            crossFadeState:
+                expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
             firstChild: const SizedBox.shrink(),
             secondChild: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               child: child,
             ),
           ),
@@ -338,58 +313,67 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
     );
   }
 
-  // -----------------------------------------------------
-  // HELPERS
-  // -----------------------------------------------------
+  // ---------------- CONTENT BUILDER ----------------
   Widget _buildContent(dynamic value, Color deepBlue) {
     if (value is String) {
-      return Text(value,
-          style: TextStyle(fontSize: 15, color: deepBlue));
+      return Text(
+        value,
+        style: TextStyle(fontSize: 15, color: deepBlue),
+      );
     }
 
     if (value is List) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: value
-            .map((e) => Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Text("• $e",
-                      style: TextStyle(fontSize: 15, color: deepBlue)),
-                ))
-            .toList(),
+        children: [
+          for (var e in value)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text("• $e",
+                  style: TextStyle(fontSize: 15, color: deepBlue)),
+            ),
+        ],
       );
     }
 
     if (value is Map) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: value.entries
-            .map((e) => Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Text("${e.key}: ${e.value}",
-                      style: TextStyle(fontSize: 15, color: deepBlue)),
-                ))
-            .toList(),
+        children: [
+          for (var e in value.entries)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text("${e.key}: ${e.value}",
+                  style: TextStyle(fontSize: 15, color: deepBlue)),
+            ),
+        ],
       );
     }
 
     return const Text("Unsupported format");
   }
 
-  Widget _title(String text, Color deepBlue) => Text(
-        text,
-        style: TextStyle(
-          fontSize: 22,
-          fontWeight: FontWeight.bold,
-          color: deepBlue,
-        ),
-      );
+  // ---------------- TITLE / VALUE ----------------
+  Widget _title(String text, Color deepBlue) {
+    return Text(
+      text,
+      style: TextStyle(
+        fontSize: 22,
+        fontWeight: FontWeight.w700,
+        color: deepBlue,
+      ),
+    );
+  }
 
-  Widget _value(String text, Color deepBlue) =>
-      Text(text, style: TextStyle(fontSize: 17, color: deepBlue));
+  Widget _value(String text, Color deepBlue) {
+    return Text(
+      text,
+      style: TextStyle(fontSize: 17, color: deepBlue),
+    );
+  }
 
+  // ---------------- FORMAT CLEAN KEY ----------------
   String _formatKey(String raw) {
-    if (raw.isEmpty) return "";
     return raw
         .replaceAll("_", " ")
         .trim()

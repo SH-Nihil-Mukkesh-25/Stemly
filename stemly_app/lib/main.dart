@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'firebase_options.dart';
+
+// Services
 import 'services/firebase_auth_service.dart';
 import 'theme/theme_provider.dart';
 
@@ -16,15 +18,18 @@ import 'screens/settings_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/terms_screen.dart';
 
+// Visualiser
+import 'visualiser/visualiser_screen.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase ONE TIME ONLY
+  // Initialize Firebase exactly once
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Create Auth Service (but DO NOT initialize Firebase again inside it)
+  // Initialize Auth service
   final authService = FirebaseAuthService();
   await authService.initialize();
 

@@ -30,9 +30,8 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
-    // ✔ Updated color set to match ScanResultScreen
     final deepBlue = cs.primary;
-    final primaryColor = cs.primaryContainer; // replaces old lightBlue
+    final primaryColor = cs.primaryContainer; // same as scan_result_screen
     final background = theme.scaffoldBackgroundColor;
     final cardColor = theme.cardColor;
 
@@ -42,8 +41,11 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
         backgroundColor: background,
         bottomNavigationBar: BottomNavBar(currentIndex: 1),
 
+        // -----------------------------------------------------
+        // UPDATED APPBAR UI (1:1 same as ScanResultScreen)
+        // -----------------------------------------------------
         appBar: AppBar(
-          backgroundColor: primaryColor, // ✔ updated
+          backgroundColor: primaryColor,
           elevation: 0,
           iconTheme: IconThemeData(color: deepBlue),
 
@@ -78,23 +80,28 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
               padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 14),
               child: Container(
                 decoration: BoxDecoration(
-                  color: deepBlue.withOpacity(0.12), // ✔ matches ScanResultScreen
+                  color: deepBlue.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(30),
                 ),
                 child: TabBar(
                   dividerColor: Colors.transparent,
+
                   indicator: BoxDecoration(
                     color: deepBlue,
                     borderRadius: BorderRadius.circular(30),
                   ),
+
                   indicatorSize: TabBarIndicatorSize.tab,
                   labelColor: cs.onPrimary,
                   unselectedLabelColor: deepBlue,
+
                   labelStyle: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 15,
                   ),
+
                   unselectedLabelStyle: const TextStyle(fontSize: 14),
+
                   tabs: const [
                     Tab(text: "AI Visualiser"),
                     Tab(text: "AI Notes"),
@@ -105,6 +112,9 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
           ),
         ),
 
+        // -----------------------------------------------------
+        // BODY
+        // -----------------------------------------------------
         body: TabBarView(
           children: [
             _visualiser(h, deepBlue),
@@ -115,20 +125,22 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     );
   }
 
-  // ---------------- VISUAL TAB ----------------
+  // -----------------------------------------------------
+  // VISUAL TAB
+  // -----------------------------------------------------
   Widget _visualiser(ScanHistory h, Color deepBlue) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(22),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // IMAGE CONTAINER
+          // IMAGE DISPLAY CARD
           Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(18),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.08), // ✔ updated shadow color
+                  color: Colors.black.withOpacity(0.10),
                   blurRadius: 14,
                   offset: const Offset(0, 6),
                 ),
@@ -146,7 +158,6 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
           ),
 
           const SizedBox(height: 30),
-
           _title("Topic", deepBlue),
           _value(h.topic, deepBlue),
           const SizedBox(height: 20),
@@ -157,7 +168,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
 
           _title("Scanned At", deepBlue),
           _value(
-            "${h.timestamp.day}/${h.timestamp.month}/${h.timestamp.year}  "
+            "${h.timestamp.day}/${h.timestamp.month}/${h.timestamp.year} "
             "${h.timestamp.hour}:${h.timestamp.minute.toString().padLeft(2, '0')}",
             deepBlue,
           ),
@@ -166,7 +177,9 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     );
   }
 
-  // ---------------- NOTES TAB ----------------
+  // -----------------------------------------------------
+  // NOTES TAB
+  // -----------------------------------------------------
   Widget _notes(ScanHistory h, Color cardColor, Color deepBlue) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(18),
@@ -191,7 +204,9 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     );
   }
 
-  // ---------------- EXPANDABLE CARD ----------------
+  // -----------------------------------------------------
+  // EXPANDABLE CARD
+  // -----------------------------------------------------
   Widget _expandableCard({
     required String title,
     required bool expanded,
@@ -208,8 +223,8 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08), // ✔ updated shadow
-            blurRadius: 8,
+            color: Colors.black.withOpacity(0.10),
+            blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
@@ -217,8 +232,8 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
       child: Column(
         children: [
           InkWell(
-            borderRadius: BorderRadius.circular(18),
             onTap: onTap,
+            borderRadius: BorderRadius.circular(18),
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
               child: Row(
@@ -233,18 +248,22 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                     ),
                   ),
                   Icon(
-                    expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                    size: 28,
+                    expanded
+                        ? Icons.keyboard_arrow_up
+                        : Icons.keyboard_arrow_down,
+                    size: 26,
                     color: deepBlue,
                   ),
                 ],
               ),
             ),
           ),
+
           AnimatedCrossFade(
             duration: const Duration(milliseconds: 260),
-            crossFadeState:
-                expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+            crossFadeState: expanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
             firstChild: const SizedBox.shrink(),
             secondChild: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -256,10 +275,15 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     );
   }
 
-  // ---------------- HELPERS ----------------
+  // -----------------------------------------------------
+  // HELPERS
+  // -----------------------------------------------------
   Widget _buildContent(dynamic value, Color deepBlue) {
     if (value is String) {
-      return Text(value, style: TextStyle(fontSize: 15, color: deepBlue));
+      return Text(
+        value,
+        style: TextStyle(fontSize: 15, color: deepBlue),
+      );
     }
 
     if (value is List) {
@@ -269,8 +293,10 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
             .map(
               (e) => Padding(
                 padding: const EdgeInsets.only(bottom: 6),
-                child: Text("• $e",
-                    style: TextStyle(fontSize: 15, color: deepBlue)),
+                child: Text(
+                  "• $e",
+                  style: TextStyle(fontSize: 15, color: deepBlue),
+                ),
               ),
             )
             .toList(),
@@ -284,8 +310,10 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
             .map(
               (e) => Padding(
                 padding: const EdgeInsets.only(bottom: 6),
-                child: Text("${e.key}: ${e.value}",
-                    style: TextStyle(fontSize: 15, color: deepBlue)),
+                child: Text(
+                  "${e.key}: ${e.value}",
+                  style: TextStyle(fontSize: 15, color: deepBlue),
+                ),
               ),
             )
             .toList(),
@@ -295,11 +323,19 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     return const Text("Unsupported format");
   }
 
-  Widget _title(String text, Color deepBlue) =>
-      Text(text, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: deepBlue));
+  Widget _title(String text, Color deepBlue) => Text(
+        text,
+        style: TextStyle(
+          fontSize: 22,
+          fontWeight: FontWeight.bold,
+          color: deepBlue,
+        ),
+      );
 
-  Widget _value(String text, Color deepBlue) =>
-      Text(text, style: TextStyle(fontSize: 17, color: deepBlue));
+  Widget _value(String text, Color deepBlue) => Text(
+        text,
+        style: TextStyle(fontSize: 17, color: deepBlue),
+      );
 
   String _formatKey(String raw) =>
       raw.replaceAll("_", " ").trim().replaceFirst(raw[0], raw[0].toUpperCase());

@@ -1,9 +1,11 @@
+// lib/screens/main_screen.dart
+
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
-import 'package:http_parser/http_parser.dart'; // <-- IMPORTANT FIX
+import 'package:http_parser/http_parser.dart';
 import 'package:provider/provider.dart';
 
 import '../services/firebase_auth_service.dart';
@@ -29,6 +31,7 @@ class _MainScreenState extends State<MainScreen> {
     try {
       final XFile? photo = await _picker.pickImage(source: ImageSource.camera);
       if (photo == null) return;
+
       setState(() => loading = true);
       await _uploadImage(File(photo.path));
     } catch (e) {
@@ -51,10 +54,8 @@ class _MainScreenState extends State<MainScreen> {
 
       final uri = Uri.parse("$serverIp/scan/upload");
       final request = http.MultipartRequest("POST", uri);
-
       request.headers["Authorization"] = "Bearer $token";
 
-      // FIX: Correct MIME Type Detection
       final mimeType = imageFile.path.toLowerCase().endsWith(".png")
           ? MediaType("image", "png")
           : MediaType("image", "jpeg");
@@ -106,7 +107,6 @@ class _MainScreenState extends State<MainScreen> {
         ),
       );
     } catch (e) {
-      print("Error uploading image: $e");
       setState(() => loading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error: $e")),
@@ -115,7 +115,7 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Future<Map<String, dynamic>> _fetchNotes(
-      String topic, List<String> variables, String? imagePath, String token) async {
+      String topic, List<String> variables, String? serverImagePath, String token) async {
     final uri = Uri.parse("$serverIp/notes/generate");
 
     final response = await http.post(
@@ -127,7 +127,7 @@ class _MainScreenState extends State<MainScreen> {
       body: json.encode({
         "topic": topic,
         "variables": variables,
-        "image_path": imagePath,
+        "image_path": serverImagePath,
       }),
     );
 
@@ -146,21 +146,14 @@ class _MainScreenState extends State<MainScreen> {
     return Stack(
       children: [
         _buildMainUI(theme, cs),
+
         if (loading)
-          Container(
-            color: Colors.black45,
-            child: const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(strokeWidth: 3),
-                  SizedBox(height: 20),
-                  Text(
-                    "Analyzing Image...",
-                    style: TextStyle(fontSize: 18),
-                  )
-                ],
-              ),
+          Positioned.fill(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 350),
+              curve: Curves.easeOut,
+              color: Colors.black.withOpacity(0.40),
+              child: const Center(child: _AnalyzingAnimation()),
             ),
           ),
       ],
@@ -206,10 +199,7 @@ class _MainScreenState extends State<MainScreen> {
 
               const SizedBox(height: 40),
 
-              Hero(
-                tag: "scanBtn",
-                child: _scanBox(theme, cs),
-              ),
+              Hero(tag: "scanBtn", child: _scanBox(theme, cs)),
 
               const SizedBox(height: 40),
             ],
@@ -243,7 +233,6 @@ class _MainScreenState extends State<MainScreen> {
                   ),
                 ],
               ),
-
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -273,4 +262,164 @@ class _MainScreenState extends State<MainScreen> {
       ),
     );
   }
+}
+
+//
+// -------------------------------------------------------
+// ⭐ BEAUTIFUL ANALYZING ANIMATION WIDGET
+// -------------------------------------------------------
+//
+
+class _AnalyzingAnimation extends StatefulWidget {
+  const _AnalyzingAnimation();
+
+  @override
+  State<_AnalyzingAnimation> createState() => _AnalyzingAnimationState();
+}
+
+class _AnalyzingAnimationState extends State<_AnalyzingAnimation>
+    with TickerProviderStateMixin {
+  late AnimationController pulseController;
+  late AnimationController rotateController;
+
+  @override
+  void initState() {
+    super.initState();
+
+    pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+
+    rotateController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    pulseController.dispose();
+    rotateController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        AnimatedBuilder(
+          animation: Listenable.merge([pulseController, rotateController]),
+          builder: (context, child) {
+            final pulse = 1 + (pulseController.value * 0.18);
+
+            return Transform.scale(
+              scale: pulse,
+              child: SizedBox(
+                height: 120,
+                width: 120,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Container(
+                      height: 110,
+                      width: 110,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: cs.primary.withOpacity(0.45),
+                            blurRadius: 28,
+                            spreadRadius: 4,
+                          )
+                        ],
+                      ),
+                    ),
+
+                    Transform.rotate(
+                      angle: rotateController.value * 6.28,
+                      child: CustomPaint(
+                        painter: _RotatingArcPainter(color: cs.primary),
+                        child: const SizedBox(height: 120, width: 120),
+                      ),
+                    ),
+
+                    Container(
+                      height: 70,
+                      width: 70,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          colors: [
+                            cs.primary,
+                            cs.primary.withOpacity(0.7),
+                          ],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        ),
+                      ),
+                      child: const Icon(Icons.auto_awesome,
+                          color: Colors.white, size: 30),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+
+        const SizedBox(height: 30),
+
+        ShaderMask(
+          shaderCallback: (Rect bounds) {
+            return const LinearGradient(
+              colors: [Colors.white, Colors.grey, Colors.white],
+              stops: [0.1, 0.5, 0.9],
+            ).createShader(bounds);
+          },
+          child: Text(
+            "Analyzing Image...",
+            style: TextStyle(
+              fontSize: 20,
+              color: Colors.white.withOpacity(0.9),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RotatingArcPainter extends CustomPainter {
+  final Color color;
+
+  _RotatingArcPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final stroke = 6.0;
+    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = stroke
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    // Draw only 120 degrees arc
+    canvas.drawArc(
+      rect,
+      0,
+      2.2,
+      false,
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_RotatingArcPainter oldDelegate) => true;
 }

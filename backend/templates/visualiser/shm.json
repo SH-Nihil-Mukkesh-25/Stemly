@@ -1,0 +1,11 @@
+{
+  "template_id": "shm",
+  "title": "Simple Harmonic Motion (SHM)",
+  "animation_type": "oscillator",
+  "description": "Mass-spring SHM: x = A*cos(omega*t), omega = sqrt(k/m)",
+  "parameters": {
+    "A": { "value": 2, "min": 0.1, "max": 10, "unit": "m", "label": "Amplitude (A)" },
+    "m": { "value": 1, "min": 0.1, "max": 10, "unit": "kg", "label": "Mass (m)" },
+    "k": { "value": 10, "min": 0.1, "max": 200, "unit": "N/m", "label": "Spring constant (k)" }
+  }
+}
