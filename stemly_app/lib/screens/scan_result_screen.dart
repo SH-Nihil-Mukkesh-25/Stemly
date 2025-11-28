@@ -1,5 +1,12 @@
 import 'dart:io';
+import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flame/game.dart';
+import 'package:http/http.dart' as http;
+
+import '../visualiser/projectile_motion.dart';
+import '../visualiser/visualiser_models.dart';
 
 class ScanResultScreen extends StatefulWidget {
   final String topic;
@@ -21,12 +28,72 @@ class ScanResultScreen extends StatefulWidget {
 
 class _ScanResultScreenState extends State<ScanResultScreen> {
   final Map<String, bool> expanded = {};
+  
+  // Visualiser state
+  VisualTemplate? visualiserTemplate;
+  Game? flameGame;
+  ProjectileComponent? projectileComponent;
+  bool loadingVisualiser = true;
+  
+  final String serverIp = "http://10.0.2.2:8000";
 
   @override
   void initState() {
     super.initState();
     for (var key in widget.notesJson.keys) {
       expanded[key] = false;
+    }
+    _loadVisualiser();
+  }
+  
+  Future<void> _loadVisualiser() async {
+    setState(() => loadingVisualiser = true);
+    
+    try {
+      // Call backend to get visualiser template
+      final url = Uri.parse('$serverIp/visualiser/generate');
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'topic': widget.topic,
+          'variables': widget.variables,
+        }),
+      );
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final templateJson = data['template'] as Map<String, dynamic>;
+        final template = VisualTemplate.fromJson(templateJson);
+        
+        // Create Flame game based on template
+        if (template.animationType.contains('projectile')) {
+          final p = template.parameters;
+          final U = p['U']!.value;
+          final theta = p['theta']!.value;
+          final g = p['g']!.value;
+          
+          final comp = ProjectileComponent(
+            U: U,
+            theta: theta,
+            g: g,
+            position: Vector2(50, 300),
+          );
+          
+          projectileComponent = comp;
+          flameGame = _VisualiserGame(comp);
+        }
+        
+        setState(() {
+          visualiserTemplate = template;
+          loadingVisualiser = false;
+        });
+      } else {
+        setState(() => loadingVisualiser = false);
+      }
+    } catch (e) {
+      print('Error loading visualiser: $e');
+      setState(() => loadingVisualiser = false);
     }
   }
 
@@ -96,30 +163,14 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
               ),
             ),
           ),
-        ),
-
-        body: TabBarView(
-          children: [
-            _visualiser(deepBlue),
-            _notes(cardColor, deepBlue),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ---------------- VISUALISER TAB ----------------
-  Widget _visualiser(Color deepBlue) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // IMAGE CARD
+          // FLAME ANIMATION CARD
           Container(
-            height: 260,
+            height: 320,
             width: double.infinity,
             decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.05),
               borderRadius: BorderRadius.circular(18),
               boxShadow: [
                 BoxShadow(
@@ -131,10 +182,27 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(18),
-              child: Image.file(
-                File(widget.imagePath),
-                fit: BoxFit.cover,
-              ),
+              child: loadingVisualiser
+                  ? const Center(child: CircularProgressIndicator())
+                  : flameGame != null
+                      ? GameWidget(game: flameGame!)
+                      : Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.animation, size: 48, color: deepBlue.withOpacity(0.5)),
+                              const SizedBox(height: 12),
+                              Text(
+                                'No visualisation available\nfor "${widget.topic}"',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: deepBlue.withOpacity(0.7),
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
             ),
           ),
           const SizedBox(height: 28),
