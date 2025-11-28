@@ -83,15 +83,8 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
           
           print("📊 Parameters - U: $U, theta: $theta, g: $g");
           
-          final comp = ProjectileComponent(
-            U: U,
-            theta: theta,
-            g: g,
-            position: Vector2(50, 300),
-          );
-          
-          projectileComponent = comp;
-          flameGame = _VisualiserGame(comp);
+          // Use the new ProjectileMotionGame instead of component
+          flameGame = ProjectileMotionGame(U: U, theta: theta, g: g);
           print("✅ Projectile game created successfully!");
           
         } else if (templateId.contains('free') || templateId.contains('fall')) {

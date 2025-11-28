@@ -4,223 +4,217 @@ import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 
-class ProjectileComponent extends PositionComponent {
-  final double U; // Initial velocity (m/s)
-  final double theta; // Launch angle (degrees)
-  final double g; // Gravity (m/s²)
-
-  double elapsedTime = 0.0;
-  double totalFlightTime = 0.0;
+class ProjectileMotionGame extends FlameGame {
+  final double U;
+  final double theta;
+  final double g;
   
-  // Visual elements
-  final List<Vector2> trajectoryPoints = [];
-  final Paint ballPaint = Paint();
-  final Paint shadowPaint = Paint();
-  final Paint gridPaint = Paint();
-  final Paint axisPaint = Paint();
-  final Paint vectorPaint = Paint();
-  final Paint pathPaint = Paint();
-  
-  // Scale factors for display
-  final double pixelsPerMeter = 5.0;
-  final double displayScale = 3.0;
-
-  ProjectileComponent({
+  ProjectileMotionGame({
     required this.U,
     required this.theta,
     required this.g,
-    required Vector2 position,
-  }) : super(position: position, size: Vector2(400, 400));
-
+  });
+  
+  @override
+  Color backgroundColor() => const Color(0xFFF5F5F5);
+  
   @override
   Future<void> onLoad() async {
-    // Calculate total flight time
+    await add(ProjectileVisualizer(U: U, theta: theta, g: g));
+  }
+}
+
+class ProjectileVisualizer extends Component with HasGameRef {
+  final double U;
+  final double theta;
+  final double g;
+  
+  double elapsedTime = 0.0;
+  double totalFlightTime = 0.0;
+  final List<Vector2> trajectoryPoints = [];
+  
+  // Visual paints
+  final Paint ballPaint = Paint();
+  final Paint gridPaint = Paint();
+  final Paint axisPaint = Paint();
+  final Paint pathPaint = Paint();
+  final Paint textPaint = Paint();
+  final Paint groundPaint = Paint();
+  
+  ProjectileVisualizer({
+    required this.U,
+    required this.theta,
+    required this.g,
+  });
+  
+  @override
+  Future<void> onLoad() async {
     final thetaRad = theta * pi / 180;
     totalFlightTime = (2 * U * sin(thetaRad)) / g;
     
     // Initialize paints
-    ballPaint.color = const Color(0xFFFF6B35);
-    ballPaint.style = PaintingStyle.fill;
+    ballPaint
+      ..color = const Color(0xFFFF6B35)
+      ..style = PaintingStyle.fill;
     
-    shadowPaint.color = Colors.black.withOpacity(0.2);
-    shadowPaint.maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
+    gridPaint
+      ..color = Colors.grey.withOpacity(0.3)
+      ..strokeWidth = 1;
     
-    gridPaint.color = Colors.grey.withOpacity(0.2);
-    gridPaint.strokeWidth = 0.5;
+    axisPaint
+      ..color = Colors.black87
+      ..strokeWidth = 2;
     
-    axisPaint.color = Colors.black87;
-    axisPaint.strokeWidth = 2;
+    pathPaint
+      ..color = const Color(0xFFFF6B35).withOpacity(0.5)
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke;
     
-    vectorPaint.color = const Color(0xFF4A90E2);
-    vectorPaint.strokeWidth = 2;
-    vectorPaint.style = PaintingStyle.stroke;
-    
-    pathPaint.color = const Color(0xFFFF6B35).withOpacity(0.3);
-    pathPaint.strokeWidth = 2;
-    pathPaint.style = PaintingStyle.stroke;
-    
-    return super.onLoad();
+    groundPaint
+      ..color = const Color(0xFF8BC34A);
   }
-
+  
   @override
   void update(double dt) {
     super.update(dt);
     
     elapsedTime += dt;
     
-    // Reset when flight completes
-    if (elapsedTime > totalFlightTime) {
+    if (elapsedTime > totalFlightTime + 1.0) {
       elapsedTime = 0.0;
       trajectoryPoints.clear();
     }
     
-    // Store trajectory point
-    if (trajectoryPoints.isEmpty || elapsedTime - trajectoryPoints.length * 0.05 > 0) {
+    // Add trajectory point
+    if (elapsedTime <= totalFlightTime) {
       final pos = _calculatePosition(elapsedTime);
       if (pos.y >= 0) {
         trajectoryPoints.add(pos);
       }
     }
   }
-
+  
   Vector2 _calculatePosition(double t) {
     final thetaRad = theta * pi / 180;
     final x = U * cos(thetaRad) * t;
     final y = U * sin(thetaRad) * t - 0.5 * g * t * t;
-    return Vector2(x, y);
+    return Vector2(x, max(0.0, y));
   }
-
+  
   @override
   void render(Canvas canvas) {
-    super.render(canvas);
+    final size = gameRef.size;
     
-    // Draw background gradient
-    final bgGradient = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [Color(0xFFE3F2FD), Color(0xFFFFFFFF)],
-      ).createShader(Rect.fromLTWH(0, 0, size.x, size.y));
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.x, size.y), bgGradient);
+    // Calculate range and max height for scaling
+    final thetaRad = theta * pi / 180;
+    final range = (U * U * sin(2 * thetaRad)) / g;
+    final maxHeight = (U * U * sin(thetaRad) * sin(thetaRad)) / (2 * g);
     
-    // Transform: origin at bottom-left
+    // Calculate scale to fit screen with margins
+    final marginX = size.x * 0.15;
+    final marginY = size.y * 0.2;
+    final scaleX = (size.x - 2 * marginX) / range;
+    final scaleY = (size.y - 2 * marginY) / maxHeight;
+    final scale = min(scaleX, scaleY);
+    
+    // Origin at bottom-left with margin
+    final originX = marginX;
+    final originY = size.y - marginY;
+    
     canvas.save();
-    canvas.translate(40, size.y - 40);
-    canvas.scale(1, -1);
     
     // Draw grid
-    _drawGrid(canvas);
+    _drawGrid(canvas, size, originX, originY, scale, range, maxHeight);
+    
+    // Draw ground
+    _drawGround(canvas, size, originY);
     
     // Draw axes
-    _drawAxes(canvas);
+    _drawAxes(canvas, originX, originY, scale, range, maxHeight);
     
     // Draw trajectory path
-    _drawTrajectoryPath(canvas);
-    
-    // Draw ground line
-    _drawGround(canvas);
-    
-    // Calculate current position
-    final pos = _calculatePosition(elapsedTime);
-    final displayX = pos.x * pixelsPerMeter * displayScale;
-    final displayY = max(0, pos.y) * pixelsPerMeter * displayScale;
-    
-    // Draw velocity vector
-    if (displayY > 0) {
-      _drawVelocityVector(canvas, Vector2(displayX, displayY));
+    if (trajectoryPoints.isNotEmpty) {
+      _drawTrajectory(canvas, originX, originY, scale);
     }
     
-    // Draw shadow
-    canvas.drawCircle(Offset(displayX, 0), 8, shadowPaint);
-    
-    // Draw ball with gradient
-    final ballGradient = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          const Color(0xFFFF8C5A),
-          const Color(0xFFFF6B35),
-        ],
-      ).createShader(Rect.fromCircle(center: Offset(displayX, displayY), radius: 10));
-    canvas.drawCircle(Offset(displayX, displayY), 10, ballGradient);
-    
-    // Draw ball highlight
-    final highlightPaint = Paint()
-      ..color = Colors.white.withOpacity(0.4);
-    canvas.drawCircle(Offset(displayX + 2, displayY + 2), 3, highlightPaint);
+    // Draw ball
+    if (elapsedTime <= totalFlightTime) {
+      final pos = _calculatePosition(elapsedTime);
+      _drawBall(canvas, originX, originY, scale, pos);
+      
+      // Draw velocity vector
+      _drawVelocityVector(canvas, originX, originY, scale, pos);
+    }
     
     canvas.restore();
     
-    // Draw labels (in normal coordinates)
-    _drawLabels(canvas);
+    // Draw info panel
+    _drawInfoPanel(canvas, size);
   }
-
-  void _drawGrid(Canvas canvas) {
-    final gridSize = 20.0;
-    final maxX = size.x - 80;
-    final maxY = size.y - 80;
+  
+  void _drawGrid(Canvas canvas, Vector2 size, double originX, double originY, double scale, double range, double maxHeight) {
+    final gridSize = 5.0; // meters
     
-    for (double x = 0; x <= maxX; x += gridSize) {
+    // Vertical lines
+    for (double x = 0; x <= range; x += gridSize) {
+      final screenX = originX + x * scale;
       canvas.drawLine(
-        Offset(x, 0),
-        Offset(x, maxY),
+        Offset(screenX, originY),
+        Offset(screenX, originY - maxHeight * scale * 1.2),
         gridPaint,
       );
     }
     
-    for (double y = 0; y <= maxY; y += gridSize) {
+    // Horizontal lines
+    for (double y = 0; y <= maxHeight * 1.2; y += gridSize) {
+      final screenY = originY - y * scale;
       canvas.drawLine(
-        Offset(0, y),
-        Offset(maxX, y),
+        Offset(originX, screenY),
+        Offset(originX + range * scale, screenY),
         gridPaint,
       );
     }
   }
-
-  void _drawAxes(Canvas canvas) {
+  
+  void _drawGround(Canvas canvas, Vector2 size, double originY) {
+    canvas.drawRect(
+      Rect.fromLTWH(0, originY, size.x, size.y - originY),
+      groundPaint,
+    );
+  }
+  
+  void _drawAxes(Canvas canvas, double originX, double originY, double scale, double range, double maxHeight) {
     // X-axis
     canvas.drawLine(
-      const Offset(0, 0),
-      Offset(size.x - 80, 0),
+      Offset(originX, originY),
+      Offset(originX + range * scale, originY),
       axisPaint,
     );
     
     // Y-axis
     canvas.drawLine(
-      const Offset(0, 0),
-      Offset(0, size.y - 80),
+      Offset(originX, originY),
+      Offset(originX, originY - maxHeight * scale * 1.2),
       axisPaint,
     );
     
-    // Arrow heads
-    final arrowPaint = Paint()
-      ..color = Colors.black87
-      ..style = PaintingStyle.fill;
+    // Axis labels
+    _drawText(canvas, 'Distance (m)', originX + range * scale / 2, originY + 30, size: 14, bold: true);
     
-    // X-axis arrow
-    final xArrowPath = Path()
-      ..moveTo(size.x - 80, 0)
-      ..lineTo(size.x - 90, -5)
-      ..lineTo(size.x - 90, 5)
-      ..close();
-    canvas.drawPath(xArrowPath, arrowPaint);
-    
-    // Y-axis arrow
-    final yArrowPath = Path()
-      ..moveTo(0, size.y - 80)
-      ..lineTo(-5, size.y - 90)
-      ..lineTo(5, size.y - 90)
-      ..close();
-    canvas.drawPath(yArrowPath, arrowPaint);
+    canvas.save();
+    canvas.translate(originX - 40, originY - maxHeight * scale * 0.6);
+    canvas.rotate(-pi / 2);
+    _drawText(canvas, 'Height (m)', 0, 0, size: 14, bold: true);
+    canvas.restore();
   }
-
-  void _drawTrajectoryPath(Canvas canvas) {
-    if (trajectoryPoints.length < 2) return;
-    
+  
+  void _drawTrajectory(Canvas canvas, double originX, double originY, double scale) {
     final path = Path();
+    
     for (int i = 0; i < trajectoryPoints.length; i++) {
       final pt = trajectoryPoints[i];
-      final x = pt.x * pixelsPerMeter * displayScale;
-      final y = max(0, pt.y) * pixelsPerMeter * displayScale;
+      final x = originX + pt.x * scale;
+      final y = originY - pt.y * scale;
       
       if (i == 0) {
         path.moveTo(x, y);
@@ -231,136 +225,123 @@ class ProjectileComponent extends PositionComponent {
     
     canvas.drawPath(path, pathPaint);
   }
-
-  void _drawGround(Canvas canvas) {
-    final groundPaint = Paint()
-      ..color = const Color(0xFF8D6E63)
-      ..style = PaintingStyle.fill;
+  
+  void _drawBall(Canvas canvas, double originX, double originY, double scale, Vector2 pos) {
+    final x = originX + pos.x * scale;
+    final y = originY - pos.y * scale;
     
-    canvas.drawRect(
-      Rect.fromLTWH(0, -10, size.x - 80, 10),
-      groundPaint,
+    // Shadow
+    final shadowPaint = Paint()
+      ..color = Colors.black.withOpacity(0.3)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+    canvas.drawCircle(Offset(x, originY), 12, shadowPaint);
+    
+    // Ball gradient
+    final gradient = RadialGradient(
+      colors: [
+        const Color(0xFFFF8C5A),
+        const Color(0xFFFF6B35),
+      ],
     );
     
-    // Grass pattern
-    final grassPaint = Paint()
-      ..color = const Color(0xFF66BB6A)
-      ..style = PaintingStyle.fill;
+    final ballPaint = Paint()
+      ..shader = gradient.createShader(Rect.fromCircle(center: Offset(x, y), radius: 15));
     
-    for (double x = 0; x < size.x - 80; x += 5) {
-      canvas.drawLine(
-        Offset(x, 0),
-        Offset(x, 3),
-        grassPaint..strokeWidth = 2,
-      );
-    }
+    canvas.drawCircle(Offset(x, y), 15, ballPaint);
+    
+    // Highlight
+    final highlightPaint = Paint()
+      ..color = Colors.white.withOpacity(0.6);
+    canvas.drawCircle(Offset(x - 4, y - 4), 5, highlightPaint);
   }
-
-  void _drawVelocityVector(Canvas canvas, Vector2 ballPos) {
+  
+  void _drawVelocityVector(Canvas canvas, double originX, double originY, double scale, Vector2 pos) {
     final thetaRad = theta * pi / 180;
     final vx = U * cos(thetaRad);
     final vy = U * sin(thetaRad) - g * elapsedTime;
     
-    final vectorScale = 3.0;
-    final endX = ballPos.x + vx * vectorScale;
-    final endY = ballPos.y + vy * vectorScale;
+    final x = originX + pos.x * scale;
+    final y = originY - pos.y * scale;
     
-    // Draw vector line
-    canvas.drawLine(
-      Offset(ballPos.x, ballPos.y),
-      Offset(endX, endY),
-      vectorPaint,
-    );
+    final vectorScale = 0.15 * scale;
+    final endX = x + vx * vectorScale;
+    final endY = y - vy * vectorScale;
     
-    // Draw arrow head
-    final angle = atan2(endY - ballPos.y, endX - ballPos.x);
+    final vectorPaint = Paint()
+      ..color = const Color(0xFF2196F3)
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke;
+    
+    canvas.drawLine(Offset(x, y), Offset(endX, endY), vectorPaint);
+    
+    // Arrow head
+    final angle = atan2(endY - y, endX - x);
     final arrowPath = Path()
       ..moveTo(endX, endY)
-      ..lineTo(
-        endX - 8 * cos(angle - pi / 6),
-        endY - 8 * sin(angle - pi / 6),
-      )
-      ..lineTo(
-        endX - 8 * cos(angle + pi / 6),
-        endY - 8 * sin(angle + pi / 6),
-      )
+      ..lineTo(endX - 10 * cos(angle - pi / 6), endY - 10 * sin(angle - pi / 6))
+      ..lineTo(endX - 10 * cos(angle + pi / 6), endY - 10 * sin(angle + pi / 6))
       ..close();
     
-    final arrowPaint = Paint()
-      ..color = const Color(0xFF4A90E2)
-      ..style = PaintingStyle.fill;
-    canvas.drawPath(arrowPath, arrowPaint);
+    canvas.drawPath(arrowPath, Paint()..color = const Color(0xFF2196F3));
+    
+    // Velocity label
+    final v = sqrt(vx * vx + vy * vy);
+    _drawText(canvas, 'v = ${v.toStringAsFixed(1)} m/s', endX + 10, endY - 10, 
+        size: 12, color: const Color(0xFF2196F3), bold: true);
   }
-
-  void _drawLabels(Canvas canvas) {
-    final textPainter = TextPainter(
-      textDirection: TextDirection.ltr,
-    );
-    
-    // Parameters box
-    final paramsBg = Paint()
-      ..color = Colors.white.withOpacity(0.9)
-      ..style = PaintingStyle.fill;
-    
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(10, 10, 140, 90),
-        const Radius.circular(8),
-      ),
-      paramsBg,
+  
+  void _drawInfoPanel(Canvas canvas, Vector2 size) {
+    final panelRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(10, 10, 200, 140),
+      const Radius.circular(12),
     );
     
     canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(10, 10, 140, 90),
-        const Radius.circular(8),
-      ),
+      panelRect,
+      Paint()..color = Colors.white.withOpacity(0.95),
+    );
+    
+    canvas.drawRRect(
+      panelRect,
       Paint()
-        ..color = Colors.black12
+        ..color = Colors.black26
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1,
+        ..strokeWidth = 2,
     );
     
-    // Draw parameter text
-    _drawText(canvas, 'Projectile Motion', 20, 25, bold: true);
-    _drawText(canvas, 'U = ${U.toStringAsFixed(1)} m/s', 20, 45);
-    _drawText(canvas, 'θ = ${theta.toStringAsFixed(0)}°', 20, 60);
-    _drawText(canvas, 'g = ${g.toStringAsFixed(2)} m/s²', 20, 75);
+    _drawText(canvas, 'Projectile Motion', 20, 30, size: 16, bold: true, color: const Color(0xFF1976D2));
+    _drawText(canvas, 'Initial Velocity: ${U.toStringAsFixed(1)} m/s', 20, 55, size: 13);
+    _drawText(canvas, 'Launch Angle: ${theta.toStringAsFixed(0)}°', 20, 75, size: 13);
+    _drawText(canvas, 'Gravity: ${g.toStringAsFixed(2)} m/s²', 20, 95, size: 13);
     
-    // Axis labels
-    canvas.save();
-    canvas.scale(1, -1);
-    _drawText(canvas, 'X (m)', size.x - 70, -15, centered: false);
-    _drawText(canvas, 'Y', 15, -(size.y - 60), centered: false);
-    canvas.restore();
-  }
-
-  // Method to update parameters at runtime
-  void updateParams({double? U, double? theta, double? g}) {
-    // Note: Since U, theta, g are final, we can't actually update them
-    // This method exists for compatibility with visualiser_screen.dart
-    // In a real scenario, you'd need to recreate the component with new values
-    print('updateParams called - U: $U, theta: $theta, g: $g');
-    print('Note: Parameters are final and cannot be changed at runtime');
-  }
-
-  void _drawText(Canvas canvas, String text, double x, double y,
-      {bool bold = false, bool centered = true}) {
-    final textSpan = TextSpan(
-      text: text,
-      style: TextStyle(
-        color: Colors.black87,
-        fontSize: 12,
-        fontWeight: bold ? FontWeight.bold : FontWeight.normal,
-      ),
-    );
+    final thetaRad = theta * pi / 180;
+    final range = (U * U * sin(2 * thetaRad)) / g;
+    final maxHeight = (U * U * sin(thetaRad) * sin(thetaRad)) / (2 * g);
     
+    _drawText(canvas, 'Range: ${range.toStringAsFixed(1)} m', 20, 115, size: 13, color: const Color(0xFFFF6B35), bold: true);
+    _drawText(canvas, 'Max Height: ${maxHeight.toStringAsFixed(1)} m', 20, 135, size: 13, color: const Color(0xFFFF6B35), bold: true);
+  }
+  
+  void _drawText(Canvas canvas, String text, double x, double y, 
+      {double size = 12, bool bold = false, Color color = Colors.black87}) {
     final textPainter = TextPainter(
-      text: textSpan,
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          color: color,
+          fontSize: size,
+          fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+          fontFamily: 'Roboto',
+        ),
+      ),
       textDirection: TextDirection.ltr,
     );
     
     textPainter.layout();
     textPainter.paint(canvas, Offset(x, y));
+  }
+  
+  void updateParams({double? U, double? theta, double? g}) {
+    print('updateParams called - values are immutable');
   }
 }
