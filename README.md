@@ -291,7 +291,7 @@ flutter run
 
 ---
 
-## 👥 Team: Mugiwara Coders
+## 👥 Team: Mugiwara Coders (STEM Quest Hackathon)
 
 We're a team of passionate computer science students from Coimbatore who believe in using technology to make education more accessible and engaging.
 
