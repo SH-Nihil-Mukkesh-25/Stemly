@@ -8,6 +8,7 @@ import '../theme/theme_provider.dart';
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
+  // FEEDBACK
   Future<void> _sendFeedback() async {
     final Uri email = Uri(
       scheme: 'mailto',
@@ -17,11 +18,13 @@ class SettingsScreen extends StatelessWidget {
     await launchUrl(email, mode: LaunchMode.externalApplication);
   }
 
+  // RATE APP
   Future<void> _rateApp() async {
     const url = "https://play.google.com/store/apps/details?id=com.stemly.app";
     await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
   }
 
+  // GENERIC INFO SHEET
   void _openInfoSheet(
     BuildContext context, {
     required String title,
@@ -44,21 +47,16 @@ class SettingsScreen extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: cs.primary,
-                ),
-              ),
+              Text(title,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: cs.primary,
+                  )),
               const SizedBox(height: 12),
               Text(
                 message,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: cs.onSurface.withOpacity(0.8),
-                ),
+                style: TextStyle(fontSize: 15, color: cs.onSurface.withOpacity(0.8)),
               ),
               const SizedBox(height: 22),
               SizedBox(
@@ -76,7 +74,6 @@ class SettingsScreen extends StatelessWidget {
                   child: Text(buttonText, style: const TextStyle(fontSize: 16)),
                 ),
               ),
-              const SizedBox(height: 12),
             ],
           ),
         );
@@ -84,6 +81,7 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
+  // ABOUT SHEET
   void _showAboutSheet(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
@@ -105,34 +103,24 @@ class SettingsScreen extends StatelessWidget {
               child: ListView(
                 controller: controller,
                 children: [
-                  // ❌ REMOVED ONLY THE ANIMATION — NOTHING ELSE
                   const SizedBox(height: 10),
-
                   Row(
                     children: [
                       CircleAvatar(
                         radius: 30,
                         backgroundColor: cs.primary,
-                        child: Icon(
-                          Icons.school,
-                          color: cs.onPrimary,
-                          size: 32,
-                        ),
+                        child: Icon(Icons.school, color: cs.onPrimary, size: 32),
                       ),
                       const SizedBox(width: 16),
-                      Text(
-                        "Team STEMLY",
-                        style: TextStyle(
-                          fontSize: 22,
-                          color: cs.primary,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
+                      Text("Team STEMLY",
+                          style: TextStyle(
+                            fontSize: 22,
+                            color: cs.primary,
+                            fontWeight: FontWeight.w800,
+                          )),
                     ],
                   ),
-
                   const SizedBox(height: 20),
-
                   Text(
                     "We are the creators of STEMLY — a tool that transforms STEM learning into an interactive visual experience.",
                     style: TextStyle(
@@ -140,18 +128,13 @@ class SettingsScreen extends StatelessWidget {
                       color: cs.onSurface.withOpacity(0.8),
                     ),
                   ),
-
                   const SizedBox(height: 28),
-
-                  Text(
-                    "Team Members",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: cs.primary,
-                    ),
-                  ),
-
+                  Text("Team Members",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: cs.primary,
+                      )),
                   const SizedBox(height: 16),
 
                   _teamTile(
@@ -162,7 +145,6 @@ class SettingsScreen extends StatelessWidget {
                     github: "https://github.com/",
                     linkedin: "https://linkedin.com/",
                   ),
-
                   _teamTile(
                     cs,
                     name: "S H Nihi Mukkesh",
@@ -171,16 +153,14 @@ class SettingsScreen extends StatelessWidget {
                     github: "https://github.com/",
                     linkedin: "https://linkedin.com/",
                   ),
-
                   _teamTile(
                     cs,
                     name: "Shre Ram P J",
-                    role: "Machine Learning / Algorithms",
+                    role: "Machine Learning",
                     avatar: "assets/team/shreram.png",
                     github: "https://github.com/",
                     linkedin: "https://linkedin.com/",
                   ),
-
                   _teamTile(
                     cs,
                     name: "Vibin Ragav",
@@ -198,6 +178,7 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
+  // TEAM TILE
   Widget _teamTile(
     ColorScheme cs, {
     required String name,
@@ -219,9 +200,8 @@ class SettingsScreen extends StatelessWidget {
                 width: 56,
                 height: 56,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Icon(Icons.person, size: 32, color: cs.primary);
-                },
+                errorBuilder: (context, error, stackTrace) =>
+                    Icon(Icons.person, size: 32, color: cs.primary),
               ),
             ),
           ),
@@ -231,21 +211,12 @@ class SettingsScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  name,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: cs.primary,
-                  ),
-                ),
-                Text(
-                  role,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: cs.onSurface.withOpacity(0.7),
-                  ),
-                ),
+                Text(name,
+                    style: TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w700, color: cs.primary)),
+                Text(role,
+                    style:
+                        TextStyle(fontSize: 14, color: cs.onSurface.withOpacity(0.7))),
               ],
             ),
           ),
@@ -265,7 +236,7 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
+    final themeProvider = context.watch<ThemeProvider>();
     final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -273,12 +244,30 @@ class SettingsScreen extends StatelessWidget {
         title: const Text("Settings"),
         automaticallyImplyLeading: false,
       ),
+
       body: ListView(
         children: [
+          // DARK MODE
           SwitchListTile(
             title: const Text("Dark Mode"),
             value: themeProvider.isDarkMode,
-            onChanged: (value) => themeProvider.toggleTheme(value),
+            onChanged: themeProvider.toggleTheme,
+          ),
+
+          // NOTIFICATION TOGGLE
+          SwitchListTile(
+            title: const Text("Notifications"),
+            subtitle: const Text("Receive updates from STEMLY"),
+            value: themeProvider.notifications,
+            onChanged: themeProvider.toggleNotifications,
+          ),
+
+          // WIFI ONLY
+          SwitchListTile(
+            title: const Text("Wi-Fi Only Mode"),
+            subtitle: const Text("Process scans only on Wi-Fi"),
+            value: themeProvider.wifiOnly,
+            onChanged: themeProvider.toggleWifiOnly,
           ),
 
           const Divider(),
@@ -296,31 +285,27 @@ class SettingsScreen extends StatelessWidget {
           ListTile(
             leading: Icon(Icons.feedback_outlined, color: cs.primary),
             title: const Text("Send Feedback"),
-            onTap: () {
-              _openInfoSheet(
-                context,
-                title: "Send Feedback",
-                message:
-                    "We value your feedback. Help us improve STEMLY by sharing your thoughts.",
-                buttonText: "Compose Email",
-                onPressed: _sendFeedback,
-              );
-            },
+            onTap: () => _openInfoSheet(
+              context,
+              title: "Send Feedback",
+              message:
+                  "We value your feedback. Help us improve STEMLY by sharing your thoughts.",
+              buttonText: "Compose Email",
+              onPressed: _sendFeedback,
+            ),
           ),
 
           ListTile(
             leading: Icon(Icons.star_rate_rounded, color: Colors.amber),
             title: const Text("Rate the App"),
-            onTap: () {
-              _openInfoSheet(
-                context,
-                title: "Rate STEMLY",
-                message:
-                    "If you enjoy STEMLY, support us by leaving a rating on the Play Store.",
-                buttonText: "Open Play Store",
-                onPressed: _rateApp,
-              );
-            },
+            onTap: () => _openInfoSheet(
+              context,
+              title: "Rate STEMLY",
+              message:
+                  "If you enjoy STEMLY, support us by leaving a rating on the Play Store.",
+              buttonText: "Open Play Store",
+              onPressed: _rateApp,
+            ),
           ),
 
           ListTile(
