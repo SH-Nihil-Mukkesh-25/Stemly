@@ -2,403 +2,244 @@
 
 **Scan → Analyze → Visualize → Study**
 
-A next-generation STEM learning platform that transforms any diagram, problem, or concept into an interactive learning experience powered by AI-driven visualizations and comprehensive study notes.
+An AI-powered STEM learning platform that transforms diagrams and problems into interactive simulations and comprehensive study notes.
 
-![Stemly Welcome Screen](https://github.com/user/repo/screenshots/welcome.png)
-*Stemly's clean, modern interface with Google authentication*
-
----
-
-## 🌟 Overview
-
-Stemly is an advanced, AI-powered educational application designed to revolutionize how students learn STEM subjects, with a primary focus on physics. By combining real-time computer vision, generative AI, and interactive simulations, Stemly provides an immersive learning experience through its innovative workflow.
-
-The moment you scan any STEM content, Stemly activates two powerful AI modes:
-
-- **AI Visualiser**: Dynamic, parameter-driven simulations with real-time interactive controls *(currently for Physics, expanding to Math & Chemistry)*
-- **AI Notes**: Complete study companion with explanations, formulas, and curated resources *(available for all STEM subjects)*
+[![GitHub](https://img.shields.io/badge/GitHub-Stemly-blue)](https://github.com/SH-Nihil-Mukkesh-25/Stemly)
+[![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter)](https://flutter.dev)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Python-009688?logo=fastapi)](https://fastapi.tiangolo.com)
 
 ---
 
-## ✨ Key Features
+## 🌟 What is Stemly?
 
-### 🎨 AI Visualiser (Primary Tab)
+Stemly is an advanced educational application that bridges the gap between theoretical STEM concepts and visual understanding. By combining real-time computer vision, generative AI, and interactive physics simulations, we've created a unique **"Text-to-Simulation"** learning experience.
 
-![AI Visualiser in Action](https://github.com/user/repo/screenshots/visualiser.png)
-*Interactive projectile motion simulation with adjustable parameters*
+**The Problem:** Students struggle to visualize abstract physics concepts from textbooks and static diagrams. Traditional learning tools offer either theory OR visuals, but rarely both in an interactive, personalized way.
 
-The core innovation of Stemly - a dynamic, parameter-driven simulation window powered by Flutter's CustomPainter visual engine:
+**Our Solution:** Scan any physics problem, and Stemly instantly generates:
 
-- **Template-based simulations** - Mathematically accurate, not pre-recorded animations
-- **Interactive parameters** - Sliders and real-time controls for all variables
-- **Adaptive visualizations** - Automatically adjusts based on scanned content
-- **AI-regeneration** - Instant simulation updates based on natural language requests
-- **Dynamic graphs and equations** - Real-time physics calculations with frame-accurate rendering
-- **60 FPS performance** - Smooth, professional-grade animations
+- **AI Visualiser**: Dynamic, parameter-driven simulations with real-time interactive controls *(Currently Physics - expanding to Math & Chemistry)*
+- **AI Notes**: Comprehensive study companion with explanations, formulas, and curated resources *(Available for all STEM subjects)*
 
-**Currently Supported Simulations (Physics):**
+This creates a complete learning ecosystem where students can both SEE the physics in action and UNDERSTAND the underlying theory.
+
+---
+
+## 📸 App Screenshots
+
+<div align="center">
+
+### Welcome & Authentication
+<img src="docs/screenshots/welcome.png" width="250" alt="Welcome Screen"/> <img src="docs/screenshots/scan-loading.png" width="250" alt="Loading Screen"/>
+
+### Main Interface
+<img src="docs/screenshots/home.png" width="250" alt="Home Screen"/> <img src="docs/screenshots/visualiser.png" width="250" alt="AI Visualiser"/> <img src="docs/screenshots/notes.png" width="250" alt="AI Notes"/>
+
+### Settings
+<img src="docs/screenshots/settings.png" width="250" alt="Settings Screen"/>
+
+</div>
+
+---
+
+## ✨ Core Innovation
+
+### 🎨 AI Visualiser - The Heart of Stemly
+
+Unlike pre-recorded videos or static animations, our visualizer is a **real-time physics engine** powered by Flutter's CustomPainter:
+
+- **Template-based simulations** - Mathematically accurate calculations (not animations)
+- **Interactive parameter control** - Adjust velocity, angle, gravity, resistance with sliders
+- **AI-powered regeneration** - Modify simulations using natural language
+- **Real-time rendering** - 60 FPS with frame-accurate physics calculations
+- **Dynamic graphs** - Auto-updating velocity-time, position-time plots
+
+**Currently Supported Physics Simulations:**
 - Projectile Motion
 - Simple Harmonic Motion (SHM)
 - Optics (Refraction, Reflection)
 - 1D Kinematics
 - Circuits (Ohm's Law)
-- And more physics topics...
+- Wave Motion
 
-> **Note:** Visualizations are currently available for **Physics topics only**. We're working hard to bring this powerful feature to **Mathematics and Chemistry** soon!
+**Natural Language Control:**
+Users can ask: *"What happens if gravity increases to 15 m/s²?"* or *"Show horizontal and vertical components separately"* - and the simulation updates instantly.
 
-### 📚 AI Notes (Secondary Tab)
+### 📚 AI Notes - Complete Study Companion
 
-![AI Notes Interface](https://github.com/user/repo/screenshots/notes.png)
-*Comprehensive study notes with structured sections*
+Generated specifically for each scanned problem:
 
-A full study companion generated from your scanned content:
-
-- **Concept Explanation** - Clear, detailed explanations tailored to the scanned image
-- **Variable Breakdown** - Understanding each parameter in the problem
-- **Key Formulas** - Mathematical equations with physical meaning
-- **Worked Examples** - Step-by-step problem solutions
-- **Common Mistakes** - Pitfalls to avoid
-- **Practice Questions** - Test your understanding
-- **5-Point Summary** - Quick revision bullet points
-- **Curated Resources** - Best online learning materials and video links
+- **Concept Explanation** - Tailored to the exact topic scanned
+- **Variable Breakdown** - Understanding each parameter
+- **Key Formulas** - With physical meaning and derivations
+- **Worked Examples** - Step-by-step solutions
+- **Common Mistakes** - What to avoid
+- **Practice Questions** - Test understanding
+- **5-Point Summary** - Quick revision
+- **Curated Resources** - Best videos and articles
 
 ---
 
-## 🔄 How It Works
+## 🔄 Complete Workflow
 
 ### Step 1: Scan
-
-![Scan Interface](https://github.com/user/repo/screenshots/home.png)
-*Simple, intuitive home screen - just tap to scan*
-
-Capture any STEM content using your device camera:
-- Physics diagrams
+Users capture any STEM content with their camera:
+- Physics diagrams (projectile motion, circuits, optics)
 - Math problems
-- Circuit diagrams
-- Kinematics graphs
-- Laboratory experiments
 - Handwritten homework
+- Laboratory experiment setups
 
-**AI Image Recognition:**
-- Powered by Google Gemini Vision API
-- Extracts handwritten or printed text
-- Recognizes diagrams, graphs, and schematics
-- Classifies topics with high accuracy
+**Powered by Google Gemini Vision API** for accurate OCR and diagram recognition.
 
 ### Step 2: AI Analysis
+The system immediately:
+- Identifies main topic and sub-topics
+- Extracts key variables (velocity, angle, acceleration, etc.)
+- Determines the optimal simulation template
+- Analyzes the question context
 
-The system immediately analyzes and identifies:
-- Main topic and sub-topic
-- Core concepts involved
-- Relevant variables (velocity, angle, resistance, gravity, etc.)
-- Optimal simulation template
-
-**Example Detection:**
-```
-Scanned: Projectile motion diagram
-↓
-Topic: Projectile Motion (Kinematics)
-Variables: initial velocity (u), angle (θ), gravity (g)
-Template: Projectile Motion Simulator
-```
-
-### Step 3: Interactive Learning
-
-Two tabs appear automatically after scanning:
+### Step 3: Dual Learning Modes
 
 **Tab 1 - AI Visualiser** (opens by default)
-- Real-time animated physics simulation
-- Adjustable parameters via interactive sliders
-- Auto-updating velocity-time, position-time graphs
-- Live equation displays with current values
+- Real-time physics simulation renders instantly
+- Interactive sliders for all parameters
+- Live equations update with current values
+- Graph visualization (v-t, s-t, a-t plots)
 - Labeled components for clarity
 
 **Tab 2 - AI Notes**
-- Comprehensive concept explanations
-- Formula derivations and meanings
-- Solved examples with detailed steps
+- Comprehensive theoretical explanation
+- All formulas with meanings
+- Solved examples
 - External learning resources
-- Quick revision summaries
-- Concept clarification questions
+- Quick summary for revision
 
-### Step 4: AI-Driven Follow-Up
+### Step 4: Interactive Exploration
+Below the visualizer is an AI chat interface where users can:
+- Ask "what-if" questions
+- Request parameter modifications
+- Get explanations for specific phenomena
+- Explore edge cases
 
-![Chat with AI](https://github.com/user/repo/screenshots/visualiser.png)
-*Chat interface below the visualiser for natural language control*
-
-Ask questions in natural language to modify simulations:
-- *"Show what happens if acceleration decreases"*
-- *"Increase gravity to 15 m/s²"*
-- *"Separate horizontal and vertical components"*
-- *"What if the refractive index becomes 2.0?"*
-
-**How it works:**
-1. AI processes your natural language request
-2. Determines which parameters need adjustment
-3. Returns updated JSON configuration
-4. Frontend seamlessly regenerates the simulation
-
-This creates an **infinite learning sandbox** where students can freely explore "what-if" scenarios.
-
----
-
-## 💡 Real-World Example
-
-**Scenario:** User scans a kinematics diagram of a car accelerating on a straight road.
-
-**AI identifies:**
-- Topic: 1D Kinematics
-- Variables: a (acceleration), v₀ (initial velocity), t (time)
-- Template: Linear Motion Simulator
-
-**Tab 1 - AI Visualiser shows:**
-- Animated car moving along a road
-- Interactive sliders: acceleration, starting velocity, time
-- Graph buttons: velocity-time plot, position-time plot
-- Real-time equation display: v = v₀ + at, s = v₀t + ½at²
-
-**User asks:** *"Show what happens if acceleration becomes zero after 4 seconds"*
-
-**AI response:** Updates the simulation instantly, showing constant velocity motion after t=4s with smooth transition.
-
-**Tab 2 - AI Notes provides:**
-- Explanation of motion equations
-- Physical meaning of each term
-- Real-life examples (car braking, rocket launch)
-- Common mistakes students make
-- Curated resources (Khan Academy, YouTube videos)
-- 5-point summary for quick revision
-
----
-
-## 🎯 Why Stemly?
-
-Unlike YouTube, Google Lens, ChatGPT, textbooks, or traditional tutoring, Stemly provides **everything in one place**:
-
-| Feature | Stemly | YouTube | Textbooks | ChatGPT | Google Lens |
-|---------|--------|---------|-----------|---------|-------------|
-| Instant Scanning | ✅ | ❌ | ❌ | ❌ | ✅ |
-| Interactive Simulations | ✅ | ❌ | ❌ | ❌ | ❌ |
-| AI-Controlled Parameters | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Comprehensive Notes | ✅ | ⚠️ | ✅ | ✅ | ❌ |
-| Personalized Learning | ✅ | ❌ | ❌ | ⚠️ | ❌ |
-| Curated Resources | ✅ | ⚠️ | ❌ | ⚠️ | ❌ |
-
-**Complete Learning Flow:**
+**Example:**
 ```
-Scan → AI Visualiser → Adjust Parameters → Ask Questions → Learn Theory (AI Notes)
+User: "Show what happens if acceleration becomes zero after 4 seconds"
+AI: [Updates simulation to show constant velocity motion after t=4s]
 ```
 
-**Benefits:**
-- ✅ **Maximum Clarity** - Visual + theoretical understanding combined
-- ✅ **High Engagement** - Interactive simulations keep students interested
-- ✅ **Personalized Learning** - AI adapts to individual questions and pace
-- ✅ **Deep Understanding** - Not just memorization, but conceptual mastery
-- ✅ **All-in-One Platform** - Everything you need in a single app
+This creates an **infinite learning sandbox** for experimentation.
 
 ---
 
-## 🏗️ System Architecture
+## 🏗️ Technical Architecture
 
-Stemly follows a modern **Client-Server Architecture** with decoupled frontend and backend:
+### System Design
 
 ```
 ┌─────────────────┐
-│   User/Mobile   │
-│      App        │
+│   Mobile App    │
+│   (Flutter)     │
 └────────┬────────┘
-         │ HTTP Requests
-         │ Auth Token
-         ▼
-┌─────────────────────────────────────┐
-│          Frontend                   │
-│       Flutter App                   │
-│   CustomPainter Engine              │
-└────────┬────────────────────────────┘
          │ REST API
-         │ JSON Data
          ▼
-┌─────────────────────────────────────┐
-│          Backend                    │
-│      FastAPI Backend                │
-│       API Routers                   │
-│     Business Logic                  │
-│   LangChain Orchestrator            │
-└────┬────────┬───────────┬───────────┘
-     │        │           │
-     ▼        ▼           ▼
-┌─────────┐ ┌──────┐ ┌──────────────┐
-│Firebase │ │MongoDB│ │Google Gemini │
-│  Auth   │ │       │ │     AI       │
-└─────────┘ └──────┘ └──────────────┘
+┌─────────────────────────────────┐
+│   FastAPI Backend               │
+│   - API Routers                 │
+│   - LangChain Orchestration     │
+└────┬────────┬──────────┬────────┘
+     │        │          │
+     ▼        ▼          ▼
+┌────────┐ ┌──────┐ ┌──────────┐
+│Firebase│ │MongoDB│ │ Gemini  │
+│  Auth  │ │       │ │   AI    │
+└────────┘ └──────┘ └──────────┘
 ```
+
+### Technology Stack
+
+**Frontend (Mobile)**
+- **Framework:** Flutter 3.x with Dart
+- **Visualization Engine:** CustomPainter for real-time physics rendering
+- **State Management:** Provider pattern
+- **UI/UX:** Material Design 3 with glassmorphism
+- **Camera Integration:** image_picker for scanning
+
+**Backend (Server)**
+- **Framework:** FastAPI (Python 3.10+)
+- **Server:** Uvicorn ASGI for high concurrency
+- **Validation:** Pydantic for type-safe data models
+- **Async Operations:** Full async/await support
+
+**AI & Machine Learning**
+- **Model:** Google Gemini 1.5 Flash
+  - Selected for optimal balance of speed, accuracy, and reasoning
+  - Handles OCR, concept extraction, and parameter generation
+- **Orchestration:** LangChain for AI workflow management
+- **Prompt Engineering:** Custom templates for:
+  - Tutor Mode (educational content)
+  - Simulation Controller (parameter adjustments)
+
+**Database & Auth**
+- **Database:** MongoDB (NoSQL for flexible JSON structures)
+- **Authentication:** Firebase Auth with Google Sign-In
+- **Storage:** Scan history, user preferences, learning progress
+
+### Key Technical Innovations
+
+1. **Physics Rendering Engine**
+   - Not video playback - actual mathematical calculations
+   - Physics formulas (e.g., `y = v₀*sin(θ)*t - 0.5*g*t²`) computed per frame
+   - 60 FPS performance with accurate trajectory rendering
+
+2. **AI Simulation Controller**
+   - Natural language → Parameter mapping
+   - LangChain + Gemini processes user requests
+   - Returns JSON diff with updated parameters
+   - Frontend applies changes seamlessly
+
+3. **Template System**
+   - Modular simulation templates
+   - AI selects appropriate template based on topic
+   - Easily extensible for new topics
 
 ---
 
-## 🛠️ Technology Stack
+## 🎯 Impact & Value Proposition
 
-### Frontend (Mobile Application)
+**For Students:**
+- Instant visual understanding of complex concepts
+- Interactive exploration encourages deeper learning
+- Personalized explanations adapt to their questions
+- Complete study resources in one place
 
-**Framework:** Flutter 3.x  
-**Language:** Dart
 
-**Core Libraries:**
-- `flutter/material.dart` - Material Design 3 UI components
-- `http` - REST API communication
-- `provider` - State management (Authentication, User Data, Simulation State)
-- `image_picker` - Device camera integration for scanning
-
-**Visualization Engine:**
-- `CustomPainter` - Low-level painting for high-performance physics animations
-- `AnimationController` - 60 FPS rendering with physics loop management
-- Mathematical precision with real-time calculations
-
-**UI/UX:**
-- **Glassmorphism** - Custom BackdropFilter implementation for premium aesthetic
-- **Responsive Design** - Adaptive layouts across screen sizes
-- **Material Design 3** - Modern, accessible interface
-
-### Backend (Server & Logic)
-
-**Framework:** FastAPI  
-**Language:** Python 3.10+  
-**Server:** Uvicorn (ASGI for high concurrency)
-
-**Key Libraries:**
-- `pydantic` - Data validation and type safety
-- `python-multipart` - File upload handling
-- `python-dotenv` - Environment configuration
-
-### AI & Machine Learning
-
-**Model:** Google Gemini 1.5 Flash
-- Balance of high reasoning capability, speed, and large context window
-- OCR, physics tutoring, and JSON parameter generation
-
-**Orchestration:** LangChain
-- `langchain-google-genai` - Gemini API integration
-- Custom prompt templates for:
-  - **Tutor Mode** - Educational content generation
-  - **Simulation Controller Mode** - Natural language to parameter translation
-
-### Database & Storage
-
-**Database:** MongoDB
-- NoSQL document store for flexible JSON structures
-- Stores: scan history, simulation templates, user preferences, learning progress
-- Driver: `motor` (Async Python driver)
-
-**Authentication:** Firebase Authentication
-- Secure user sign-up/login
-- Token-based API verification
-- Multi-platform support (Email, Google)
-
----
-
-## 🔐 Authentication & Setup
-
-![Settings Screen](https://github.com/user/repo/screenshots/settings.png)
-*User-friendly settings with dark mode and notification preferences*
-
-### Backend Configuration
-
-1. **Create a Firebase service account:**
-   - Firebase Console → Project Settings → Service Accounts → Generate New Private Key
-   - Store the JSON file securely
-
-2. **Set environment variables:**
-
-```env
-# backend/.env
-MONGO_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/stemly
-GEMINI_API_KEY=your_gemini_api_key
-FIREBASE_CREDENTIALS_FILE=C:\secrets\stemly-service-account.json
-```
-
-3. **Install dependencies and run:**
-
-```bash
-cd backend
-pip install -r requirements.txt
-uvicorn main:app --reload
-```
-
-### Flutter Configuration
-
-1. **Run flutterfire configure:**
-
-```bash
-cd stemly_app
-flutterfire configure
-flutter pub get
-flutter run --dart-define=STEMLY_API_BASE_URL=https://api.yourdomain.com
-```
-
-2. **Test authentication:**
-
-```bash
-curl https://api.yourdomain.com/auth/me \
-  -H "Authorization: Bearer <Firebase_ID_token>"
-```
-
----
-
-## 🔌 API Structure
-
-The backend exposes these key REST endpoints:
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/scan/upload` | POST | Accepts image, performs OCR/Analysis, returns identified topic |
-| `/visualiser/generate` | POST | Returns initial JSON configuration for physics topic |
-| `/visualiser/update` | POST | Accepts user prompt and parameters, returns AI-adjusted config |
-| `/notes/generate` | POST | Generates comprehensive study notes for topic |
-| `/auth/login` | POST | User authentication |
-| `/auth/me` | GET | Get current user profile |
-| `/history/scans` | GET | Retrieves user's scan history |
-
-**Authentication:** All endpoints use JWT authentication and return standardized JSON responses.
+**Market Differentiation:**
+- No existing tool combines AI-powered scanning + interactive simulations + comprehensive notes
+- Goes beyond static visualizations (PhET) by offering AI customization
+- More visual than text-based AI tutors (ChatGPT)
 
 ---
 
 ## 📊 Current Development Status
 
 ### ✅ Completed Features
-- Core scanning and image recognition
-- Physics visualizer engine with multiple simulation templates
-- AI Notes generation system
-- Backend API infrastructure with FastAPI
-- User authentication system with Firebase
-- Mobile UI with glassmorphism design
-- Google authentication integration
-- User profile management
+- ✓ Core image scanning and OCR with Gemini Vision
+- ✓ Physics visualizer engine with 6+ simulation templates
+- ✓ AI Notes generation for all STEM subjects
+- ✓ Complete FastAPI backend with authentication
+- ✓ Firebase + Google authentication integration
+- ✓ MongoDB database with user data persistence
+- ✓ Mobile UI with glassmorphism design
+- ✓ Real-time parameter controls
+- ✓ Natural language simulation updates
 
 ### 🚧 Currently Working On
-- **AI Chat Feature** - Enhanced conversational interface for follow-up questions
-- **Bug Fixes** - Improving stability and performance
-- **Additional Simulation Templates** - Expanding physics topic coverage
-- **UI/UX Refinements** - Polishing for better accessibility
-- **Mathematics Visualizations** - Bringing interactive visualizations to algebra, calculus, geometry, and more
-- **Chemistry Simulations** - Molecular structures, chemical reactions, and periodic table interactions
+- AI Chat Feature - Enhanced conversational interface
+- Additional Physics Templates - Expanding coverage
+- Bug Fixes & Performance - Cross-device optimization
+- UI/UX Polish - Improved accessibility
 
-### 🔮 Upcoming Features
-- **Multi-subject visualization support** (Chemistry, Mathematics) - Currently in active development
-- Collaborative learning features
-- Progress tracking and analytics
-- Offline mode support
-- Advanced graph plotting capabilities
-- Custom simulation builder
-
-> **🎯 Current Focus:** While AI Notes work for all STEM subjects, our interactive visualizations are currently optimized for Physics. We're actively expanding this capability to Mathematics and Chemistry to provide the same immersive learning experience across all STEM disciplines.
-
----
-
-## 👥 Team: Mugiwara Coders
-
-- **[SH Nihil Mukkesh](https://github.com/SH-Nihil-Mukkesh-25)** (CB.SC.U4CSE24531)
-- **[SHRE RAAM P J](https://github.com/SHRE-RAAM-P-J)** (CB.SC.U4CSE24548)
-- **[P Dakshin Raj](https://github.com/Dakshin10)** (CB.SC.U4CSE24534)
-- **[Vibin Ragav S](https://github.com/VibinR-code)** (CB.SC.U4CSE24556)
+> **Current Scope:** Interactive visualizations are live for Physics. AI Notes work for all STEM subjects. We're actively developing visualization capabilities for Mathematics and Chemistry.
 
 ---
 
@@ -411,65 +252,93 @@ The backend exposes these key REST endpoints:
 - MongoDB Atlas account
 - Google Gemini API key
 
-### Quick Start
+### Installation
 
-1. **Clone the repository:**
 ```bash
+# Clone repository
 git clone https://github.com/SH-Nihil-Mukkesh-25/Stemly.git
 cd Stemly
-```
 
-2. **Set up backend:**
-```bash
+# Backend setup
 cd backend
 pip install -r requirements.txt
-# Configure .env file with your credentials
-uvicorn main:app --reload
-```
 
-3. **Set up Flutter app:**
-```bash
+# Configure environment variables (.env)
+MONGO_URI=your_mongodb_connection_string
+GEMINI_API_KEY=your_gemini_api_key
+FIREBASE_CREDENTIALS_FILE=path/to/service-account.json
+
+# Run backend
+uvicorn main:app --reload
+
+# Flutter setup (new terminal)
 cd stemly_app
 flutter pub get
 flutterfire configure
 flutter run
 ```
 
----
+### API Endpoints
 
-## 📝 License
-
-[Add your license here]
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/scan/upload` | POST | Upload image, returns identified topic and parameters |
+| `/visualiser/generate` | POST | Generate initial simulation configuration |
+| `/visualiser/update` | POST | Update simulation based on natural language request |
+| `/notes/generate` | POST | Generate comprehensive study notes |
+| `/auth/me` | GET | Get authenticated user profile |
+| `/history/scans` | GET | Retrieve user's scan history |
 
 ---
 
-## 📧 Contact
+## 👥 Team: Mugiwara Coders
 
-For inquiries and collaboration:
-- **LinkedIn:** [SH Nihil Mukkesh](https://www.linkedin.com/in/sh-nihil-mukkesh/)
-- **GitHub:** [Stemly Repository](https://github.com/SH-Nihil-Mukkesh-25/Stemly)
+We're a team of passionate computer science students from Coimbatore who believe in using technology to make education more accessible and engaging.
+
+- **[SH Nihil Mukkesh](https://github.com/SH-Nihil-Mukkesh-25)** - CB.SC.U4CSE24531
+   - Backend & AI
+ 
+- **[P Dakshin Raj](https://github.com/Dakshin10)** - CB.SC.U4CSE24534
+  - Frontend & Flutter
+  
+- **[SHRE RAAM P J](https://github.com/SHRE-RAAM-P-J)** - CB.SC.U4CSE24548
+  
+- **[Vibin Ragav S](https://github.com/VibinR-code)** - CB.SC.U4CSE24556
 
 ---
 
-## 🙏 Acknowledgments
+## 🎓 Why Stemly Stands Out
 
-- Google Gemini AI for powerful vision and language capabilities
-- Flutter team for the amazing cross-platform framework
-- Firebase for robust authentication services
-- MongoDB for flexible data storage
-- All contributors and testers who helped make Stemly better
+**Technical Excellence:**
+- Full-stack implementation with modern technologies
+- Real-time physics calculations, not pre-recorded content
+- AI-powered natural language control
+- Scalable architecture ready for expansion
+
+**Educational Impact:**
+- Addresses real learning challenges in STEM education
+- Combines visualization + theory for complete understanding
+- Personalized, interactive learning experience
+- Accessible to students regardless of resources
+
+**Innovation:**
+- Unique "Text-to-Simulation" concept
+- First platform to combine scanning + AI simulations + study notes
+- Extensible framework for multi-subject expansion
+
+**Execution:**
+- Fully functional MVP with real users
+- Clean, intuitive interface
+- Robust backend infrastructure
+- Clear roadmap for growth
+
+---
+
+## 📧 Contact & Links
+
+**LinkedIn:** [SH Nihil Mukkesh](https://www.linkedin.com/in/sh-nihil-mukkesh/)  
+**Repository:** [github.com/SH-Nihil-Mukkesh-25/Stemly](https://github.com/SH-Nihil-Mukkesh-25/Stemly)  
+**Demo Video:** [Coming Soon]
 
 ---
 
@@ -477,6 +346,6 @@ For inquiries and collaboration:
 
 **Transforming STEM education, one scan at a time.** 🚀
 
-*Scan → Visualize → Learn*
+*Built with ❤️ by Team Mugiwara Coders*
 
 </div>
