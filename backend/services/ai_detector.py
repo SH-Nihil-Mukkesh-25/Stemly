@@ -47,18 +47,22 @@ async def detect_topic(image_path: str):
     # --- Gemini Model ---
     model = genai.GenerativeModel("gemini-2.0-flash")
 
-    response = model.generate_content(
-        [
-            system_prompt,
-            {
-                "mime_type": mime_type,
-                "data": img_bytes
-            }
-        ]
-    )
+    try:
+        response = model.generate_content(
+            [
+                system_prompt,
+                {
+                    "mime_type": mime_type,
+                    "data": img_bytes
+                }
+            ]
+        )
+        raw_text = response.text.strip()
+    except Exception as e:
+        print(f"❌ Gemini API Error in ai_detector: {e}")
+        return "Unknown", []
 
     # --- Clean raw output ---
-    raw_text = response.text.strip()
     raw_text = re.sub(r"```json", "", raw_text)
     raw_text = re.sub(r"```", "", raw_text).strip()
 
@@ -96,5 +100,3 @@ async def detect_topic(image_path: str):
 
         # Fallback to raw topic only
         return raw_text, []
-# services/ai_detector.py
-    

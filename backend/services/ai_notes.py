@@ -123,15 +123,19 @@ async def generate_notes(topic: str, variables: list, image_path: Optional[str] 
             )
 
             model = genai.GenerativeModel("gemini-2.0-flash")
-            response = model.generate_content(
-                [
-                    system_prompt,
-                    {
-                        "mime_type": mime_type,
-                        "data": img_bytes,
-                    },
-                ]
-            )
+            try:
+                response = model.generate_content(
+                    [
+                        system_prompt,
+                        {
+                            "mime_type": mime_type,
+                            "data": img_bytes,
+                        },
+                    ]
+                )
+            except Exception as e:
+                print(f"❌ Gemini API Error in ai_notes: {e}")
+                raise ValueError("Failed to generate notes from image due to AI service error.") from e
 
             raw_text = response.text
             data = clean_json_output(raw_text)
