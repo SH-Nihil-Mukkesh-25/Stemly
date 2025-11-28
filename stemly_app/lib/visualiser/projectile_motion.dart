@@ -23,7 +23,7 @@ class ProjectileComponent extends PositionComponent {
   
   // Scale factors for display
   final double pixelsPerMeter = 5.0;
-  final double scale = 3.0;
+  final double displayScale = 3.0;
 
   ProjectileComponent({
     required this.U,
@@ -122,8 +122,8 @@ class ProjectileComponent extends PositionComponent {
     
     // Calculate current position
     final pos = _calculatePosition(elapsedTime);
-    final displayX = pos.x * pixelsPerMeter * scale;
-    final displayY = max(0, pos.y) * pixelsPerMeter * scale;
+    final displayX = pos.x * pixelsPerMeter * displayScale;
+    final displayY = max(0, pos.y) * pixelsPerMeter * displayScale;
     
     // Draw velocity vector
     if (displayY > 0) {
@@ -219,8 +219,8 @@ class ProjectileComponent extends PositionComponent {
     final path = Path();
     for (int i = 0; i < trajectoryPoints.length; i++) {
       final pt = trajectoryPoints[i];
-      final x = pt.x * pixelsPerMeter * scale;
-      final y = max(0, pt.y) * pixelsPerMeter * scale;
+      final x = pt.x * pixelsPerMeter * displayScale;
+      final y = max(0, pt.y) * pixelsPerMeter * displayScale;
       
       if (i == 0) {
         path.moveTo(x, y);
