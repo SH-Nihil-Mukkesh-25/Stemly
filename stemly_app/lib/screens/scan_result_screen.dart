@@ -442,13 +442,13 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
 
 // Custom FlameGame class for the scan result visualiser
 class _VisualiserGame extends FlameGame {
-  final ProjectileComponent projectile;
+  final Component component;
   
-  _VisualiserGame(this.projectile);
+  _VisualiserGame(this.component);
   
   @override
   Future<void> onLoad() async {
-    await add(projectile);
+    await add(component);
     return super.onLoad();
   }
 }
