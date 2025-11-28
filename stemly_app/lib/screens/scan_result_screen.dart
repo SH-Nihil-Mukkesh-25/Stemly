@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import '../visualiser/projectile_motion.dart';
+import '../visualiser/free_fall_component.dart';
+import '../visualiser/shm_component.dart';
 import '../visualiser/visualiser_models.dart';
 
 class ScanResultScreen extends StatefulWidget {
@@ -58,37 +60,6 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
         }),
       );
       
-      if (response.statusCode == 200) {
-        print("✅ API RAW RESPONSE: ${response.body}");
-        final data = jsonDecode(response.body);
-        print("✅ Decoded data: $data");
-        final templateJson = data['template'] as Map<String, dynamic>;
-        print("✅ Template JSON: $templateJson");
-        final template = VisualTemplate.fromJson(templateJson);
-        print("✅ Parsed template - animationType: ${template.animationType}, templateId: ${template.templateId}");
-        
-        // Create Flame game based on template ID
-        final templateId = template.templateId.toLowerCase();
-        
-        if (templateId.contains('projectile')) {
-          print("🎯 Creating projectile motion widget...");
-          final p = template.parameters;
-          final U = p['U']!.value;
-          final theta = p['theta']!.value;
-          final g = p['g']!.value;
-          
-          print("📊 Parameters - U: $U, theta: $theta, g: $g");
-          
-          visualiserWidget = ProjectileMotionWidget(U: U, theta: theta, g: g);
-          print("✅ Projectile widget created!");
-          
-        } else {
-          print("⚠️ Template '$templateId' - Only projectile motion supported currently");
-        }
-        
-        setState(() {
-          visualiserTemplate = template;
-          loadingVisualiser = false;
         });
       } else {
         print('Visualiser API error: ${response.statusCode} - ${response.body}');

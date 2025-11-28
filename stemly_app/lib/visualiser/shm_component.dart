@@ -1,312 +1,279 @@
 // lib/visualiser/shm_component.dart
 import 'dart:math';
-import 'package:flame/components.dart';
-import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 
-class SHMGame extends FlameGame {
+class SHMWidget extends StatefulWidget {
   final double A;
   final double m;
   final double k;
-  
-  SHMGame({required this.A, required this.m, required this.k});
-  
+
+  const SHMWidget({
+    super.key,
+    required this.A,
+    required this.m,
+    required this.k,
+  });
+
   @override
-  Color backgroundColor() => const Color(0xFFF5F5F5);
-  
+  State<SHMWidget> createState() => _SHMWidgetState();
+}
+
+class _SHMWidgetState extends State<SHMWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late double omega;
+  late double period;
+
   @override
-  Future<void> onLoad() async {
-    await add(SHMVisualizer(A: A, m: m, k: k));
+  void initState() {
+    super.initState();
+    omega = sqrt(widget.k / widget.m);
+    period = 2 * pi / omega;
+
+    _controller = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: (period * 1000).toInt()),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return CustomPaint(
+          painter: SHMPainter(
+            A: widget.A,
+            m: widget.m,
+            k: widget.k,
+            progress: _controller.value,
+            omega: omega,
+          ),
+          child: Container(),
+        );
+      },
+    );
   }
 }
 
-class SHMVisualizer extends Component with HasGameRef {
+class SHMPainter extends CustomPainter {
   final double A;
   final double m;
   final double k;
-  
-  double elapsedTime = 0.0;
-  late double omega;
-  late double period;
-  final List<Offset> graphPoints = [];
-  
-  SHMVisualizer({required this.A, required this.m, required this.k});
-  
+  final double progress;
+  final double omega;
+
+  SHMPainter({
+    required this.A,
+    required this.m,
+    required this.k,
+    required this.progress,
+    required this.omega,
+  });
+
   @override
-  Future<void> onLoad() async {
-    omega = sqrt(k / m);
-    period = 2 * pi / omega;
-  }
-  
-  @override
-  void update(double dt) {
-    super.update(dt);
-    elapsedTime += dt;
+  void paint(Canvas canvas, Size size) {
+    final t = progress * (2 * pi / omega);
+    final displacement = A * cos(omega * t);
+    final velocity = -A * omega * sin(omega * t);
+
+    final centerX = size.width * 0.3; // Spring on left side
+    final centerY = size.height / 2;
     
-    if (elapsedTime > period * 3) {
-      elapsedTime = 0;
-      graphPoints.clear();
-    }
-    
-    // Add graph point
-    if (graphPoints.isEmpty || elapsedTime - graphPoints.last.dx > 0.05) {
-      graphPoints.add(Offset(elapsedTime, _calculatePosition(elapsedTime)));
-    }
-  }
-  
-  double _calculatePosition(double t) {
-    return A * cos(omega * t);
-  }
-  
-  double _calculateVelocity(double t) {
-    return -A * omega * sin(omega * t);
-  }
-  
-  @override
-  void render(Canvas canvas) {
-    final size = gameRef.size;
-    
-    // Split screen: left for spring, right for graph
-    final splitX = size.x * 0.5;
-    
-    // Draw spring system on left
-    canvas.save();
-    _drawSpringSystem(canvas, Vector2(splitX / 2, size.y / 2));
-    canvas.restore();
-    
-    // Draw graph on right
-    canvas.save();
-    canvas.translate(splitX, 0);
-    _drawGraph(canvas, Vector2(size.x - splitX, size.y));
-    canvas.restore();
-    
-    // Draw info panel
-    _drawInfoPanel(canvas);
-  }
-  
-  void _drawSpringSystem(Canvas canvas, Vector2 center) {
-    final currentPos = _calculatePosition(elapsedTime);
-    final currentVel = _calculateVelocity(elapsedTime);
-    final scale = 60.0;
-    
-    // Draw ceiling
-    final ceilingY = center.y - 180;
+    // Scale for visualization (pixels per meter)
+    // Ensure amplitude fits within half height with some margin
+    final scale = (size.height * 0.4) / (A * 1.5); 
+
+    // Draw Background
+    final bgPaint = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0xFFF3E5F5), Color(0xFFFAFAFA)],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), bgPaint);
+
+    // Draw Ceiling
+    final ceilingY = centerY - (A * scale) - 50;
     canvas.drawRect(
-      Rect.fromLTWH(center.x - 60, ceilingY - 10, 120, 10),
-      Paint()..color = Colors.grey.shade400,
+      Rect.fromLTWH(centerX - 40, ceilingY - 10, 80, 10),
+      Paint()..color = Colors.grey.shade700,
     );
-    
-    // Ceiling pattern
-    for (double x = -60; x < 60; x += 10) {
-      canvas.drawLine(
-        Offset(center.x + x, ceilingY),
-        Offset(center.x + x + 5, ceilingY - 10),
-        Paint()..color = Colors.grey.shade600..strokeWidth = 2,
-      );
-    }
-    
-    // Draw equilibrium line
+
+    // Draw Equilibrium Line
     canvas.drawLine(
-      Offset(center.x - 70, center.y),
-      Offset(center.x + 70, center.y),
-      Paint()..color = const Color(0xFF4CAF50)..strokeWidth = 2..style = PaintingStyle.stroke,
+      Offset(centerX - 60, centerY),
+      Offset(centerX + 60, centerY),
+      Paint()..color = Colors.green.withOpacity(0.5)..style = PaintingStyle.stroke..strokeWidth = 1..pathEffect = PathEffect.dashPathEffect([5, 5], 0),
     );
-    
-    _drawText(canvas, 'Equilibrium', center.x - 35, center.y + 5, size: 10, color: const Color(0xFF4CAF50));
-    
-    // Draw amplitude markers
-    canvas.drawLine(
-      Offset(center.x - 70, center.y + A * scale),
-      Offset(center.x + 70, center.y + A * scale),
-      Paint()..color = const Color(0xFFFF9800).withOpacity(0.6)..strokeWidth = 1.5,
-    );
-    canvas.drawLine(
-      Offset(center.x - 70, center.y - A * scale),
-      Offset(center.x + 70, center.y - A * scale),
-      Paint()..color = const Color(0xFFFF9800).withOpacity(0.6)..strokeWidth = 1.5,
-    );
-    
-    _drawText(canvas, '+A', center.x + 75, center.y - A * scale - 5, size: 10, color: const Color(0xFFFF9800));
-    _drawText(canvas, '-A', center.x + 75, center.y + A * scale - 5, size: 10, color: const Color(0xFFFF9800));
-    
-    // Draw spring
-    final massY = center.y + currentPos * scale;
-    _drawSpring(canvas, center.x, ceilingY, massY - 20, 20);
-    
-    // Draw mass
-    final massWidth = 50.0;
-    final massHeight = 40.0;
-    
-    // Shadow
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromCenter(center: Offset(center.x + 3, massY + 3), width: massWidth, height: massHeight),
-        const Radius.circular(4),
-      ),
-      Paint()..color = Colors.black.withOpacity(0.3),
-    );
-    
-    // Mass gradient
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromCenter(center: Offset(center.x, massY), width: massWidth, height: massHeight),
-        const Radius.circular(4),
-      ),
-      Paint()..shader = const LinearGradient(
-        colors: [Color(0xFF64B5F6), Color(0xFF2196F3)],
-      ).createShader(Rect.fromCenter(center: Offset(center.x, massY), width: massWidth, height: massHeight)),
-    );
-    
-    // Mass border
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromCenter(center: Offset(center.x, massY), width: massWidth, height: massHeight),
-        const Radius.circular(4),
-      ),
-      Paint()..color = Colors.black26..style = PaintingStyle.stroke..strokeWidth = 2,
-    );
-    
-    _drawText(canvas, 'm', center.x - 6, massY - 6, color: Colors.white, bold: true);
-    
-    // Velocity arrow
-    if (currentVel.abs() > 0.1) {
-      _drawVelocityArrow(canvas, center.x + 40, massY, currentVel * 3);
-    }
+    _drawText(canvas, 'Equilibrium', centerX - 80, centerY, size: 10, color: Colors.green);
+
+    // Draw Spring
+    final massY = centerY + displacement * scale;
+    _drawSpring(canvas, centerX, ceilingY, massY - 20, 20);
+
+    // Draw Mass
+    _drawMass(canvas, centerX, massY);
+
+    // Draw Velocity Vector
+    _drawVelocityVector(canvas, centerX + 40, massY, velocity);
+
+    // Draw Graph (Right side)
+    _drawGraph(canvas, size, t, displacement);
+
+    // Draw Info Panel
+    _drawInfoPanel(canvas, displacement, velocity);
   }
-  
+
   void _drawSpring(Canvas canvas, double x, double startY, double endY, double width) {
-    final coils = 10;
-    final coilHeight = (endY - startY) / coils;
+    final coils = 12;
+    final height = endY - startY;
+    final coilHeight = height / coils;
     
-    final path = Path();
-    path.moveTo(x, startY);
-    
+    final path = Path()..moveTo(x, startY);
     for (int i = 0; i < coils; i++) {
       final y = startY + i * coilHeight;
-      path.lineTo(i % 2 == 0 ? x + width / 2 : x - width / 2, y + coilHeight / 2);
+      path.lineTo(i.isEven ? x + width/2 : x - width/2, y + coilHeight/2);
       path.lineTo(x, y + coilHeight);
     }
-    
+
     canvas.drawPath(
       path,
-      Paint()..color = const Color(0xFF9C27B0)..strokeWidth = 3..style = PaintingStyle.stroke,
+      Paint()..color = Colors.black87..style = PaintingStyle.stroke..strokeWidth = 2,
     );
   }
-  
-  void _drawVelocityArrow(Canvas canvas, double x, double y, double velocity) {
-    final length = min(velocity.abs() * 5, 50.0);
-    final direction = velocity > 0 ? 1.0 : -1.0;
+
+  void _drawMass(Canvas canvas, double x, double y) {
+    final size = 40.0;
+    final rect = Rect.fromCenter(center: Offset(x, y), width: size, height: size);
     
-    // Arrow line
-    canvas.drawLine(
-      Offset(x, y),
-      Offset(x, y + length * direction),
-      Paint()..color = const Color(0xFF00BCD4)..strokeWidth = 2,
+    // Shadow
+    canvas.drawOval(
+      Rect.fromCenter(center: Offset(x + 5, y + 5), width: size, height: size/2),
+      Paint()..color = Colors.black12,
+    );
+
+    // Block
+    final gradient = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [Colors.blue.shade300, Colors.blue.shade700],
     );
     
-    // Arrow head
-    final arrowHead = Path()
-      ..moveTo(x, y + length * direction)
-      ..lineTo(x - 5, y + (length - 8) * direction)
-      ..lineTo(x + 5, y + (length - 8) * direction)
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, Radius.circular(4)),
+      Paint()..shader = gradient.createShader(rect),
+    );
+    
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, Radius.circular(4)),
+      Paint()..style = PaintingStyle.stroke..color = Colors.black26,
+    );
+
+    _drawText(canvas, 'm', x - 5, y - 6, color: Colors.white, bold: true);
+  }
+
+  void _drawVelocityVector(Canvas canvas, double x, double y, double velocity) {
+    final length = (velocity * 10).clamp(-50.0, 50.0);
+    if (length.abs() < 2) return;
+
+    final endY = y + length; // Positive velocity is down in screen coords if we consider down as positive y, but usually up is positive displacement. 
+    // Wait, displacement = A cos(wt). Velocity = -A w sin(wt).
+    // Screen Y increases downwards.
+    // If displacement is positive (downwards in our drawing), y > centerY.
+    // Let's stick to visual representation: arrow points in direction of motion.
+    
+    final paint = Paint()..color = Colors.red..strokeWidth = 2..style = PaintingStyle.stroke;
+    canvas.drawLine(Offset(x, y), Offset(x, y + length), paint);
+    
+    // Arrowhead
+    final dir = length.sign;
+    final arrowY = y + length;
+    final path = Path()
+      ..moveTo(x, arrowY)
+      ..lineTo(x - 3, arrowY - 5 * dir)
+      ..lineTo(x + 3, arrowY - 5 * dir)
       ..close();
+    canvas.drawPath(path, Paint()..color = Colors.red);
     
-    canvas.drawPath(arrowHead, Paint()..color = const Color(0xFF00BCD4));
-    
-    _drawText(canvas, 'v', x + 10, y + length * direction / 2 - 5, 
-        size: 11, color: const Color(0xFF00BCD4), bold: true);
+    _drawText(canvas, 'v', x + 5, y + length/2, color: Colors.red, size: 10);
   }
-  
-  void _drawGraph(Canvas canvas, Vector2 size) {
-    final graphWidth = size.x - 40;
-    final graphHeight = size.y * 0.4;
-    final centerX = size.x / 2;
-    final centerY = size.y / 2;
+
+  void _drawGraph(Canvas canvas, Size size, double t, double displacement) {
+    final graphRect = Rect.fromLTWH(size.width * 0.6, size.height * 0.2, size.width * 0.35, size.height * 0.6);
     
     // Background
-    canvas.drawRect(
-      Rect.fromCenter(center: Offset(centerX, centerY), width: graphWidth, height: graphHeight),
+    canvas.drawRect(graphRect, Paint()..color = Colors.white70);
+    canvas.drawRect(graphRect, Paint()..style = PaintingStyle.stroke..color = Colors.black12);
+
+    // Axes
+    final midY = graphRect.center.dy;
+    canvas.drawLine(
+      Offset(graphRect.left, midY),
+      Offset(graphRect.right, midY),
+      Paint()..color = Colors.black26,
+    );
+
+    // Plot
+    // We want to show a window of time, e.g., 2 periods.
+    // But this is a stateless painter frame. We can compute the curve.
+    final path = Path();
+    final timeWindow = 2 * (2 * pi / omega);
+    final points = 50;
+    
+    for (int i = 0; i <= points; i++) {
+      final timeOffset = (i / points) * timeWindow;
+      // We want the current time 't' to be at the right or middle?
+      // Let's make it a scrolling graph where t is at the right edge?
+      // Or just static sine wave? Static is easier to understand for "Position vs Time".
+      // Let's show t moving through the wave.
+      
+      final plotT = t - timeWindow + timeOffset;
+      final val = A * cos(omega * plotT);
+      
+      // Map to rect
+      final px = graphRect.left + (i / points) * graphRect.width;
+      // Scale amplitude to fit graph height
+      final py = midY + (val / A) * (graphRect.height * 0.4);
+      
+      if (i == 0) path.moveTo(px, py);
+      else path.lineTo(px, py);
+    }
+
+    canvas.drawPath(path, Paint()..style = PaintingStyle.stroke..color = Colors.blue..strokeWidth = 2);
+    
+    // Current point marker
+    // The last point in our loop corresponds to time 't'
+    final currentVal = displacement;
+    final cx = graphRect.right;
+    final cy = midY + (currentVal / A) * (graphRect.height * 0.4);
+    canvas.drawCircle(Offset(cx, cy), 4, Paint()..color = Colors.red);
+    
+    _drawText(canvas, 'Position vs Time', graphRect.left, graphRect.top - 20, bold: true);
+  }
+
+  void _drawInfoPanel(Canvas canvas, double displacement, double velocity) {
+    final rect = Rect.fromLTWH(10, 10, 180, 90);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, Radius.circular(8)),
       Paint()..color = Colors.white.withOpacity(0.9),
     );
-    
-    // Border
-    canvas.drawRect(
-      Rect.fromCenter(center: Offset(centerX, centerY), width: graphWidth, height: graphHeight),
-      Paint()..color = Colors.black26..style = PaintingStyle.stroke..strokeWidth = 2,
-    );
-    
-    // Title
-    _drawText(canvas, 'Position vs Time', centerX - 60, centerY - graphHeight / 2 - 25, 
-        size: 14, bold: true, color: const Color(0xFF1976D2));
-    
-    // Axes
-    canvas.drawLine(
-      Offset(20, centerY),
-      Offset(size.x - 20, centerY),
-      Paint()..color = Colors.black54..strokeWidth = 1,
-    );
-    
-    canvas.drawLine(
-      Offset(20, centerY - graphHeight / 2),
-      Offset(20, centerY + graphHeight / 2),
-      Paint()..color = Colors.black54..strokeWidth = 1,
-    );
-    
-    // Plot graph
-    if (graphPoints.length > 1) {
-      final path = Path();
-      final timeScale = graphWidth / (period * 2);
-      final posScale = (graphHeight / 2) / A * 0.8;
-      
-      for (int i = 0; i < graphPoints.length; i++) {
-        final point = graphPoints[i];
-        final x = 20 + (point.dx % (period * 2)) * timeScale;
-        final y = centerY - point.dy * posScale;
-        
-        if (i == 0) {
-          path.moveTo(x, y);
-        } else {
-          path.lineTo(x, y);
-        }
-      }
-      
-      canvas.drawPath(
-        path,
-        Paint()..color = const Color(0xFFFF5722)..strokeWidth = 2..style = PaintingStyle.stroke,
-      );
-      
-      // Current point marker
-      if (graphPoints.isNotEmpty) {
-        final last = graphPoints.last;
-        final x = 20 + (last.dx % (period * 2)) * timeScale;
-        final y = centerY - last.dy * posScale;
-        
-        canvas.drawCircle(Offset(x, y), 5, Paint()..color = const Color(0xFFFF5722));
-      }
-    }
-  }
-  
-  void _drawInfoPanel(Canvas canvas) {
-    final panelRect = RRect.fromRectAndRadius(
-      const Rect.fromLTWH(10, 10, 180, 140),
-      const Radius.circular(12),
-    );
-    
-    canvas.drawRRect(panelRect, Paint()..color = Colors.white.withOpacity(0.95));
     canvas.drawRRect(
-      panelRect,
-      Paint()..color = Colors.black26..style = PaintingStyle.stroke..strokeWidth = 2,
+      RRect.fromRectAndRadius(rect, Radius.circular(8)),
+      Paint()..style = PaintingStyle.stroke..color = Colors.black12,
     );
-    
-    _drawText(canvas, 'Simple Harmonic', 20, 30, size: 15, bold: true, color: const Color(0xFF1976D2));
-    _drawText(canvas, 'Motion', 20, 48, size: 15, bold: true, color: const Color(0xFF1976D2));
-    _drawText(canvas, 'Amplitude: ${A.toStringAsFixed(2)} m', 20, 72, size: 13);
-    _drawText(canvas, 'Mass: ${m.toStringAsFixed(1)} kg', 20, 90, size: 13);
-    _drawText(canvas, 'Spring k: ${k.toStringAsFixed(1)} N/m', 20, 108, size: 13);
-    _drawText(canvas, 'Period: ${period.toStringAsFixed(2)} s', 20, 126, size: 13, 
-        color: const Color(0xFF9C27B0), bold: true);
+
+    _drawText(canvas, 'SHM', 20, 20, size: 14, bold: true, color: Colors.purple);
+    _drawText(canvas, 'Displacement: ${displacement.toStringAsFixed(2)} m', 20, 45);
+    _drawText(canvas, 'Velocity: ${velocity.toStringAsFixed(2)} m/s', 20, 65);
   }
-  
+
   void _drawText(Canvas canvas, String text, double x, double y,
       {double size = 12, bool bold = false, Color color = Colors.black87}) {
     final textPainter = TextPainter(
@@ -320,8 +287,10 @@ class SHMVisualizer extends Component with HasGameRef {
       ),
       textDirection: TextDirection.ltr,
     );
-    
     textPainter.layout();
     textPainter.paint(canvas, Offset(x, y));
   }
+
+  @override
+  bool shouldRepaint(SHMPainter oldDelegate) => true;
 }
