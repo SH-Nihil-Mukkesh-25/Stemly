@@ -3,7 +3,8 @@ from typing import Any, Dict, List
 
 from .db import db
 
-visualiser_collection = db["visualiser"]
+# Handle case where db is None
+visualiser_collection = db["visualiser"] if db is not None else None
 
 
 async def save_visualiser_entry(user_id: str, template_id: str, parameters: Dict[str, Any]):
@@ -17,12 +18,16 @@ async def save_visualiser_entry(user_id: str, template_id: str, parameters: Dict
         "timestamp": datetime.utcnow(),
     }
 
+    if visualiser_collection is None:
+        print("⚠ Database disabled, skipping save_visualiser_entry")
+        return "no-db-record"
+
     result = await visualiser_collection.insert_one(doc)
     return str(result.inserted_id)
 
 
 async def get_visualiser_entries(user_id: str, limit: int = 20):
-    if not user_id:
+    if not user_id or visualiser_collection is None:
         return []
 
     cursor = (
@@ -36,4 +41,3 @@ async def get_visualiser_entries(user_id: str, limit: int = 20):
         doc["_id"] = str(doc["_id"])
         entries.append(doc)
     return entries
-

@@ -18,7 +18,14 @@ def resolve_scan_path(image_path: str) -> Path:
     else:
         path = path.resolve()
 
-    if not str(path).startswith(str(STATIC_SCANS_DIR)):
+    # Robust check using pathlib
+    try:
+        path.relative_to(STATIC_SCANS_DIR)
+    except ValueError:
+        print(f"DEBUG: Path mismatch!")
+        print(f"  Input arg:      {image_path}")
+        print(f"  Input resolved: {path}")
+        print(f"  Expected root:  {STATIC_SCANS_DIR}")
         raise ValueError("image_path must reference a saved scan asset.")
 
     if not path.is_file():

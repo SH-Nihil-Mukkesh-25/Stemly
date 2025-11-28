@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()  # ← This loads your .env file BEFORE anything else
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -13,7 +16,7 @@ app = FastAPI(title="Stemly Backend")
 # ----------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],         # Allow all for development
+    allow_origins=["*"],  # Allow all for development
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -5,7 +5,8 @@ from typing import List
 
 from .db import db
 
-scans_collection = db["scans"]
+# Handle case where db is None
+scans_collection = db["scans"] if db is not None else None
 
 
 async def save_scan_history(user_id: str, topic: str, variables: list, image_path: str):
@@ -20,12 +21,19 @@ async def save_scan_history(user_id: str, topic: str, variables: list, image_pat
         "timestamp": datetime.utcnow(),
     }
 
+    if scans_collection is None:
+        print("⚠ Database disabled, skipping save_scan_history")
+        return "no-db-record"
+
     result = await scans_collection.insert_one(doc)
     return str(result.inserted_id)
 
 
 async def get_user_history(user_id: str) -> List[dict]:
     if not user_id:
+        return []
+
+    if scans_collection is None:
         return []
 
     history: List[dict] = []

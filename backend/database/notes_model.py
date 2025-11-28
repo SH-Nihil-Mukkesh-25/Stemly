@@ -3,7 +3,8 @@ from typing import Any, Dict, Optional
 
 from .db import db
 
-notes_collection = db["notes"]
+# Handle case where db is None
+notes_collection = db["notes"] if db is not None else None
 
 
 async def save_notes_entry(
@@ -23,12 +24,16 @@ async def save_notes_entry(
         "timestamp": datetime.utcnow(),
     }
 
+    if notes_collection is None:
+        print("⚠ Database disabled, skipping save_notes_entry")
+        return "no-db-record"
+
     result = await notes_collection.insert_one(doc)
     return str(result.inserted_id)
 
 
 async def get_notes_for_user(user_id: str, limit: int = 20):
-    if not user_id:
+    if not user_id or notes_collection is None:
         return []
 
     cursor = (
@@ -42,4 +47,3 @@ async def get_notes_for_user(user_id: str, limit: int = 20):
         entry["_id"] = str(entry["_id"])
         notes.append(entry)
     return notes
-

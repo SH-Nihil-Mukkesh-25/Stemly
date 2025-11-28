@@ -3,13 +3,18 @@ from typing import Dict, Optional
 
 from .db import db
 
-users_collection = db["users"]
+# Handle case where db is None (MongoDB disabled)
+users_collection = db["users"] if db is not None else None
 
 
 async def record_user_login(user_info: Dict[str, Optional[str]]):
     """
     Upsert the authenticated user inside MongoDB.
     """
+    # Skip if database is disabled
+    if users_collection is None:
+        return
+
     uid = user_info.get("uid")
     if not uid:
         raise ValueError("Firebase user info missing 'uid'.")
@@ -41,7 +46,6 @@ async def record_user_login(user_info: Dict[str, Optional[str]]):
 
 
 async def get_user(uid: str):
-    if not uid:
+    if not uid or users_collection is None:
         return None
     return await users_collection.find_one({"_id": uid})
-

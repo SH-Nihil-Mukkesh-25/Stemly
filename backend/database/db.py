@@ -9,9 +9,11 @@ load_dotenv()
 
 MONGO_URI = os.getenv("MONGO_URI")
 
+# Make MongoDB optional for development/testing
 if not MONGO_URI:
-    raise Exception("❌ MONGO_URI missing in .env")
-
-client = AsyncIOMotorClient(MONGO_URI, server_api=ServerApi("1"))
-
-db = client["stemly_db"]
+    print("⚠ MONGO_URI not set in .env - database features will be disabled")
+    client = None
+    db = None
+else:
+    client = AsyncIOMotorClient(MONGO_URI, server_api=ServerApi("1"))
+    db = client["stemly_db"]

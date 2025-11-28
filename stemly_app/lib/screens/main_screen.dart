@@ -3,7 +3,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart'; // <-- IMPORTANT FIX
+import 'package:provider/provider.dart';
 
+import '../services/firebase_auth_service.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../storage/history_store.dart';
 import '../models/scan_history.dart';
@@ -35,20 +38,49 @@ class _MainScreenState extends State<MainScreen> {
 
   Future<void> _uploadImage(File imageFile) async {
     try {
-      final uri = Uri.parse("$serverIp/scan/upload");
+      final authService = Provider.of<FirebaseAuthService>(context, listen: false);
+      final token = await authService.getIdToken();
 
-      final request = http.MultipartRequest("POST", uri)
-        ..fields['user_id'] = "user123"
-        ..files.add(await http.MultipartFile.fromPath("file", imageFile.path));
+      if (token == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Please log in to scan.")),
+        );
+        setState(() => loading = false);
+        return;
+      }
+
+      final uri = Uri.parse("$serverIp/scan/upload");
+      final request = http.MultipartRequest("POST", uri);
+
+      request.headers["Authorization"] = "Bearer $token";
+
+      // FIX: Correct MIME Type Detection
+      final mimeType = imageFile.path.toLowerCase().endsWith(".png")
+          ? MediaType("image", "png")
+          : MediaType("image", "jpeg");
+
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          "file",
+          imageFile.path,
+          contentType: mimeType,
+        ),
+      );
 
       final streamedResponse = await request.send();
       final responseBody = await streamedResponse.stream.bytesToString();
+
+      if (streamedResponse.statusCode != 200) {
+        throw Exception("Upload failed: ${streamedResponse.statusCode} - $responseBody");
+      }
+
       final jsonResponse = json.decode(responseBody);
 
       String topic = jsonResponse["topic"] ?? "Unknown";
       List<String> variables = List<String>.from(jsonResponse["variables"] ?? []);
+      String? serverImagePath = jsonResponse["image_path"];
 
-      final notes = await _fetchNotes(topic, variables);
+      final notes = await _fetchNotes(topic, variables, serverImagePath, token);
 
       HistoryStore.add(
         ScanHistory(
@@ -74,22 +106,34 @@ class _MainScreenState extends State<MainScreen> {
         ),
       );
     } catch (e) {
+      print("Error uploading image: $e");
       setState(() => loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
     }
   }
 
   Future<Map<String, dynamic>> _fetchNotes(
-      String topic, List<String> variables) async {
-    final uri = Uri.parse("$serverIp/scan/notes");
+      String topic, List<String> variables, String? imagePath, String token) async {
+    final uri = Uri.parse("$serverIp/notes/generate");
 
     final response = await http.post(
       uri,
-      headers: {"Content-Type": "application/json"},
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $token",
+      },
       body: json.encode({
         "topic": topic,
         "variables": variables,
+        "image_path": imagePath,
       }),
     );
+
+    if (response.statusCode != 200) {
+      throw Exception("Failed to generate notes: ${response.body}");
+    }
 
     return json.decode(response.body);
   }
@@ -126,7 +170,6 @@ class _MainScreenState extends State<MainScreen> {
   Widget _buildMainUI(ThemeData theme, ColorScheme cs) {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-
       appBar: AppBar(
         automaticallyImplyLeading: false,
         backgroundColor: theme.cardColor,
