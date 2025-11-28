@@ -40,12 +40,17 @@ dependencies:
   lottie: ^3.3.2
   url_launcher: ^6.3.2
   curved_navigation_bar: ^1.0.6
-  firebase_core: ^3.7.0
-  firebase_auth: ^5.3.0
-  cloud_firestore: ^5.4.0
+  firebase_core: ^3.15.2
+  firebase_auth: ^5.7.0
+  cloud_firestore: ^5.6.12
   google_sign_in: ^6.2.1
   shared_preferences: ^2.3.3
   flutter_secure_storage: ^9.2.2
+  firebase_storage: ^12.4.10
+  firebase_analytics: ^11.6.0
+  firebase_messaging: ^15.2.10
+  firebase_crashlytics: ^4.3.10
+  firebase_remote_config: ^5.5.0
 
 dev_dependencies:
   flutter_test:
