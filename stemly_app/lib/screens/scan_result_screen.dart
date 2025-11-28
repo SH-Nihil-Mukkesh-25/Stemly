@@ -61,16 +61,23 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       );
       
       if (response.statusCode == 200) {
+        print("✅ API RAW RESPONSE: ${response.body}");
         final data = jsonDecode(response.body);
+        print("✅ Decoded data: $data");
         final templateJson = data['template'] as Map<String, dynamic>;
+        print("✅ Template JSON: $templateJson");
         final template = VisualTemplate.fromJson(templateJson);
+        print("✅ Parsed template - animationType: ${template.animationType}, templateId: ${template.templateId}");
         
-        // Create Flame game based on template
-        if (template.animationType.contains('projectile')) {
+        // Create Flame game based on template ID (not animation type)
+        if (template.templateId.toLowerCase().contains('projectile')) {
+          print("🎯 Creating projectile component...");
           final p = template.parameters;
           final U = p['U']!.value;
           final theta = p['theta']!.value;
           final g = p['g']!.value;
+          
+          print("📊 Parameters - U: $U, theta: $theta, g: $g");
           
           final comp = ProjectileComponent(
             U: U,
@@ -81,6 +88,9 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
           
           projectileComponent = comp;
           flameGame = _VisualiserGame(comp);
+          print("✅ Flame game created successfully!");
+        } else {
+          print("⚠️ Template ID '${template.templateId}' doesn't contain 'projectile'");
         }
         
         setState(() {
