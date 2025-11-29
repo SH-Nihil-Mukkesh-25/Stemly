@@ -41,7 +41,8 @@ class _MainScreenState extends State<MainScreen> {
 
   Future<void> _uploadImage(File imageFile) async {
     try {
-      final authService = Provider.of<FirebaseAuthService>(context, listen: false);
+      final authService =
+          Provider.of<FirebaseAuthService>(context, listen: false);
       final token = await authService.getIdToken();
 
       if (token == null) {
@@ -72,16 +73,18 @@ class _MainScreenState extends State<MainScreen> {
       final responseBody = await streamedResponse.stream.bytesToString();
 
       if (streamedResponse.statusCode != 200) {
-        throw Exception("Upload failed: ${streamedResponse.statusCode} - $responseBody");
+        throw Exception("Upload failed: ${streamedResponse.statusCode}");
       }
 
       final jsonResponse = json.decode(responseBody);
 
       String topic = jsonResponse["topic"] ?? "Unknown";
-      List<String> variables = List<String>.from(jsonResponse["variables"] ?? []);
+      List<String> variables =
+          List<String>.from(jsonResponse["variables"] ?? []);
       String? serverImagePath = jsonResponse["image_path"];
 
-      final notes = await _fetchNotes(topic, variables, serverImagePath, token);
+      final notes =
+          await _fetchNotes(topic, variables, serverImagePath, token);
 
       HistoryStore.add(
         ScanHistory(
@@ -107,9 +110,53 @@ class _MainScreenState extends State<MainScreen> {
         ),
       );
     } catch (e) {
-      print("Error uploading image: $e");
       setState(() => loading = false);
       ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error uploading image: $e")),
+      );
+    }
+  }
+
+  // -------------------------------------------------------------------
+  // NOTES FETCH FUNCTION ✔
+  // -------------------------------------------------------------------
+  Future<Map<String, dynamic>> _fetchNotes(
+    String topic,
+    List<String> variables,
+    String? serverImagePath,
+    String token,
+  ) async {
+    try {
+      final url = Uri.parse("$serverIp/notes/generate");
+
+      final res = await http.post(
+        url,
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token",
+        },
+        body: jsonEncode({
+          "topic": topic,
+          "variables": variables,
+          "image_path": serverImagePath,
+        }),
+      );
+
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body)["notes"] ?? {};
+      }
+
+      return {"error": "Notes request failed: ${res.statusCode}"};
+    } catch (e) {
+      return {"error": "Connection error: $e"};
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
@@ -211,164 +258,4 @@ class _MainScreenState extends State<MainScreen> {
       ),
     );
   }
-}
-
-//
-// -------------------------------------------------------
-// ⭐ BEAUTIFUL ANALYZING ANIMATION WIDGET
-// -------------------------------------------------------
-//
-
-class _AnalyzingAnimation extends StatefulWidget {
-  const _AnalyzingAnimation();
-
-  @override
-  State<_AnalyzingAnimation> createState() => _AnalyzingAnimationState();
-}
-
-class _AnalyzingAnimationState extends State<_AnalyzingAnimation>
-    with TickerProviderStateMixin {
-  late AnimationController pulseController;
-  late AnimationController rotateController;
-
-  @override
-  void initState() {
-    super.initState();
-
-    pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat(reverse: true);
-
-    rotateController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 3),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    pulseController.dispose();
-    rotateController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        AnimatedBuilder(
-          animation: Listenable.merge([pulseController, rotateController]),
-          builder: (context, child) {
-            final pulse = 1 + (pulseController.value * 0.18);
-
-            return Transform.scale(
-              scale: pulse,
-              child: SizedBox(
-                height: 120,
-                width: 120,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Container(
-                      height: 110,
-                      width: 110,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: cs.primary.withOpacity(0.45),
-                            blurRadius: 28,
-                            spreadRadius: 4,
-                          )
-                        ],
-                      ),
-                    ),
-
-                    Transform.rotate(
-                      angle: rotateController.value * 6.28,
-                      child: CustomPaint(
-                        painter: _RotatingArcPainter(color: cs.primary),
-                        child: const SizedBox(height: 120, width: 120),
-                      ),
-                    ),
-
-                    Container(
-                      height: 70,
-                      width: 70,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          colors: [
-                            cs.primary,
-                            cs.primary.withOpacity(0.7),
-                          ],
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                        ),
-                      ),
-                      child: const Icon(Icons.auto_awesome,
-                          color: Colors.white, size: 30),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        ),
-
-        const SizedBox(height: 30),
-
-        ShaderMask(
-          shaderCallback: (Rect bounds) {
-            return const LinearGradient(
-              colors: [Colors.white, Colors.grey, Colors.white],
-              stops: [0.1, 0.5, 0.9],
-            ).createShader(bounds);
-          },
-          child: Text(
-            "Analyzing Image...",
-            style: TextStyle(
-              fontSize: 20,
-              color: Colors.white.withOpacity(0.9),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _RotatingArcPainter extends CustomPainter {
-  final Color color;
-
-  _RotatingArcPainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final stroke = 6.0;
-    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
-
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = stroke
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    // Draw only 120 degrees arc
-    canvas.drawArc(
-      rect,
-      0,
-      2.2,
-      false,
-      paint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_RotatingArcPainter oldDelegate) => true;
 }

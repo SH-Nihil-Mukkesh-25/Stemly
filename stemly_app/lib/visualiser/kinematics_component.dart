@@ -197,8 +197,4 @@ class KinematicsPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(KinematicsPainter oldDelegate) => true;
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> b70c4da2b56ffc3b9c2e103b011b7d89902c8f3b
