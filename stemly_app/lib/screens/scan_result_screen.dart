@@ -40,9 +40,21 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
   @override
   void initState() {
     super.initState();
+    
+    // Debug logging
+    print("🔍 ScanResultScreen initialized");
+    print("🔍 Topic: ${widget.topic}");
+    print("🔍 Variables: ${widget.variables}");
+    print("🔍 Image Path: ${widget.imagePath}");
+    print("🔍 Notes JSON type: ${widget.notesJson.runtimeType}");
+    print("🔍 Notes JSON keys: ${widget.notesJson.keys.toList()}");
+    print("🔍 Notes JSON isEmpty: ${widget.notesJson.isEmpty}");
+    
     for (var key in widget.notesJson.keys) {
       expanded[key] = false;
+      print("🔍 Notes key '$key' has value type: ${widget.notesJson[key].runtimeType}");
     }
+    
     _loadVisualiser();
   }
   
@@ -424,6 +436,71 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
   // NOTES
   // ---------------------------------------------------------
   Widget _notes(Color cardColor, Color deepBlue) {
+    // Debug logging
+    print("📝 Building notes UI");
+    print("📝 Notes JSON keys: ${widget.notesJson.keys.toList()}");
+    print("📝 Notes JSON: ${widget.notesJson}");
+    
+    // Check for error in response
+    if (widget.notesJson.containsKey("error")) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 64, color: deepBlue.withOpacity(0.5)),
+              const SizedBox(height: 16),
+              Text(
+                "Failed to load notes",
+                style: TextStyle(
+                  color: deepBlue,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                widget.notesJson["error"].toString(),
+                style: TextStyle(color: deepBlue.withOpacity(0.7), fontSize: 14),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    
+    // Check for empty notes
+    if (widget.notesJson.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.note_outlined, size: 64, color: deepBlue.withOpacity(0.5)),
+              const SizedBox(height: 16),
+              Text(
+                "No notes available",
+                style: TextStyle(
+                  color: deepBlue,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "Notes generation may have failed",
+                style: TextStyle(color: deepBlue.withOpacity(0.7), fontSize: 14),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(

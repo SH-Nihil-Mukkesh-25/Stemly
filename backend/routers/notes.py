@@ -17,7 +17,7 @@ router = APIRouter(
 # 1. Generate Full Notes
 # -----------------------------------------
 
-@router.post("/generate", response_model=NotesResponse)
+@router.post("/generate")
 async def generate_notes_route(req: NotesGenerateRequest, request: Request):
 
     local_path = None
@@ -43,7 +43,8 @@ async def generate_notes_route(req: NotesGenerateRequest, request: Request):
             notes_payload=notes.dict(),
             image_path=relative_path or req.image_path,
         )
-        return notes
+        # Wrap response to match Flutter's expected format
+        return {"notes": notes.dict()}
 
     except Exception as e:
         print("❌ Error in /notes/generate:", e)
@@ -55,7 +56,7 @@ async def generate_notes_route(req: NotesGenerateRequest, request: Request):
 # 2. Follow-up Question
 # -----------------------------------------
 
-@router.post("/ask", response_model=NotesResponse)
+@router.post("/ask")
 async def follow_up_notes_route(req: NotesFollowUpRequest, request: Request):
 
     try:
@@ -75,7 +76,8 @@ async def follow_up_notes_route(req: NotesFollowUpRequest, request: Request):
             notes_payload=notes.dict(),
             image_path=image_reference,
         )
-        return notes
+        # Wrap response to match Flutter's expected format
+        return {"notes": notes.dict()}
 
     except Exception as e:
         print("❌ Error in /notes/ask:", e)
