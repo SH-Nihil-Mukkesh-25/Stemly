@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 
 # Routers
 from auth import auth_router
-from routers import notes, scan, visualiser, visualiser_engine, chat
+from routers import notes, scan, visualiser, visualiser_engine
 
 app = FastAPI(title="Stemly Backend")
 
@@ -30,7 +30,6 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(auth_router.router)
 app.include_router(scan.router, prefix="/scan")
 app.include_router(notes.router)
-app.include_router(chat.router)  # New unified chat endpoint
 app.include_router(visualiser.router)  # States storage
 app.include_router(visualiser_engine.router)  # Template generation
 
