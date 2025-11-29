@@ -156,7 +156,10 @@ class _MainScreenState extends State<MainScreen> {
       print("📡 Notes response body: ${res.body}");
 
       if (res.statusCode == 200) {
-        return jsonDecode(res.body);
+        final parsed = jsonDecode(res.body);
+        print("📡 Parsed response keys: ${parsed.keys.toList()}");
+        print("📡 Notes field exists: ${parsed.containsKey('notes')}");
+        return parsed["notes"] ?? {};
       }
 
       print("❌ Notes request failed with status ${res.statusCode}");
