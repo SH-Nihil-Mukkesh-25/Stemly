@@ -1,11 +1,13 @@
 import 'dart:io';
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
 
 import '../models/scan_history.dart';
+import '../services/firebase_auth_service.dart';
 import '../widgets/bottom_nav_bar.dart';
-
 import '../visualiser/projectile_motion.dart';
 import '../visualiser/free_fall_component.dart';
 import '../visualiser/shm_component.dart';
@@ -44,11 +46,17 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     setState(() => loading = true);
 
     try {
+      final auth = context.read<FirebaseAuthService>();
+      final token = await auth.getIdToken();
+
       final url = Uri.parse("$serverIp/visualiser/generate");
 
       final response = await http.post(
         url,
-        headers: {"Content-Type": "application/json"},
+        headers: {
+          "Content-Type": "application/json",
+          if (token != null) "Authorization": "Bearer $token",
+        },
         body: jsonEncode({
           "topic": widget.history.topic,
           "variables": widget.history.variables,

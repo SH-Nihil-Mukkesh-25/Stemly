@@ -1,10 +1,12 @@
-import 'dart:io';
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:stemly_app/visualiser/kinematics_component.dart';
-import 'package:stemly_app/visualiser/optics_component.dart';
+import 'package:provider/provider.dart';
 
+import '../services/firebase_auth_service.dart';
+import '../visualiser/kinematics_component.dart';
+import '../visualiser/optics_component.dart';
 import '../visualiser/projectile_motion.dart';
 import '../visualiser/free_fall_component.dart';
 import '../visualiser/shm_component.dart';
@@ -60,17 +62,32 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
   
   Future<void> _loadVisualiser() async {
     setState(() => loadingVisualiser = true);
-    
+
     try {
+      // Use authenticated headers so backend visualiser routes can read the Firebase user.
+      final auth = context.read<FirebaseAuthService>();
+      final token = await auth.getIdToken();
+
+      if (token == null) {
+        debugPrint("⚠ No auth token for visualiser");
+        if (mounted) {
+          setState(() => loadingVisualiser = false);
+        }
+        return;
+      }
+
       final url = Uri.parse('$serverIp/visualiser/generate');
       final response = await http.post(
         url,
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
         body: jsonEncode({
           'topic': widget.topic,
           'variables': widget.variables,
         }),
-      );
+      ).timeout(const Duration(seconds: 20));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -122,10 +139,16 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
           });
         }
       } else {
-        setState(() => loadingVisualiser = false);
+        debugPrint("⚠ Visualiser API error: ${response.statusCode} - ${response.body}");
+        if (mounted) {
+          setState(() => loadingVisualiser = false);
+        }
       }
     } catch (e) {
-      setState(() => loadingVisualiser = false);
+      debugPrint("❌ Visualiser load error: $e");
+      if (mounted) {
+        setState(() => loadingVisualiser = false);
+      }
     }
   }
 

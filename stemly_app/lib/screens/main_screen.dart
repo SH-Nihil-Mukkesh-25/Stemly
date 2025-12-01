@@ -1,5 +1,6 @@
 // lib/screens/main_screen.dart
 
+import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -24,20 +25,41 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   final ImagePicker _picker = ImagePicker();
   final String serverIp = "http://10.0.2.2:8000";
+  bool _isProcessing = false;
+  bool _isLoadingDialogShown = false;
 
   // ---------------------------------------------------------
   // CAMERA PICK
   // ---------------------------------------------------------
   Future<void> _openCamera() async {
+    if (_isProcessing || !mounted) return; // Prevent multiple taps
+    
     try {
-      final XFile? photo = await _picker.pickImage(source: ImageSource.camera);
-      if (photo == null) return;
+      setState(() => _isProcessing = true);
+      
+      final XFile? photo = await _picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 85,
+      );
+      
+      if (photo == null || !mounted) {
+        setState(() => _isProcessing = false);
+        return;
+      }
 
-      _showLoading();
-      await _uploadImage(File(photo.path));
+      if (mounted) {
+        _showLoading();
+        await _uploadImage(File(photo.path));
+      }
     } catch (e) {
-      _hideLoading();
-      debugPrint("Camera error: $e");
+      if (mounted) {
+        _hideLoading();
+        setState(() => _isProcessing = false);
+        debugPrint("Camera error: $e");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Camera error: $e")),
+        );
+      }
     }
   }
 
@@ -45,16 +67,21 @@ class _MainScreenState extends State<MainScreen> {
   // UPLOAD IMAGE
   // ---------------------------------------------------------
   Future<void> _uploadImage(File imageFile) async {
+    if (!mounted) return;
+    
     try {
       final authService =
           Provider.of<FirebaseAuthService>(context, listen: false);
 
       final token = await authService.getIdToken();
       if (token == null) {
-        _hideLoading();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Please log in to scan.")),
-        );
+        if (mounted) {
+          _hideLoading();
+          setState(() => _isProcessing = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Please log in to scan.")),
+          );
+        }
         return;
       }
 
@@ -74,12 +101,20 @@ class _MainScreenState extends State<MainScreen> {
         ),
       );
 
-      final streamedResponse = await request.send();
+      // Add timeout to prevent infinite loading
+      final streamedResponse = await request.send()
+          .timeout(const Duration(seconds: 60), onTimeout: () {
+        throw TimeoutException("Upload timeout after 60 seconds");
+      });
+      
       final responseBody = await streamedResponse.stream.bytesToString();
 
       if (streamedResponse.statusCode != 200) {
-        _hideLoading();
-        throw Exception("Upload failed: ${streamedResponse.statusCode}");
+        if (mounted) {
+          _hideLoading();
+          setState(() => _isProcessing = false);
+        }
+        throw Exception("Upload failed: ${streamedResponse.statusCode} - $responseBody");
       }
 
       final jsonResponse = jsonDecode(responseBody);
@@ -88,9 +123,15 @@ class _MainScreenState extends State<MainScreen> {
           List<String>.from(jsonResponse["variables"] ?? []);
       final String? serverImagePath = jsonResponse["image_path"];
 
-      // Fetch AI notes
-      final notes =
-          await _fetchNotes(topic, variables, serverImagePath, token);
+      // Fetch AI notes with timeout (non-blocking)
+      Map<String, dynamic> notes = {};
+      try {
+        notes = await _fetchNotes(topic, variables, serverImagePath, token)
+            .timeout(const Duration(seconds: 30));
+      } catch (e) {
+        debugPrint("Notes fetch timeout/error: $e");
+        notes = {"error": "Notes generation timed out or failed"};
+      }
 
       // Save scan history locally
       HistoryStore.add(
@@ -103,26 +144,35 @@ class _MainScreenState extends State<MainScreen> {
         ),
       );
 
-      _hideLoading();
+      if (mounted) {
+        _hideLoading();
+        setState(() => _isProcessing = false);
 
-      // Navigate
-      if (!mounted) return;
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ScanResultScreen(
-            topic: topic,
-            variables: variables,
-            notesJson: notes,
-            imagePath: imageFile.path,
+        // Navigate even if notes failed
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ScanResultScreen(
+              topic: topic,
+              variables: variables,
+              notesJson: notes,
+              imagePath: imageFile.path,
+            ),
           ),
-        ),
-      );
+        );
+      }
     } catch (e) {
-      _hideLoading();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error uploading image: $e")),
-      );
+      if (mounted) {
+        _hideLoading();
+        setState(() => _isProcessing = false);
+        debugPrint("Upload error: $e");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error: ${e.toString().replaceAll('TimeoutException: ', '')}"),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     }
   }
 
@@ -174,27 +224,38 @@ class _MainScreenState extends State<MainScreen> {
   // LOADING DIALOG
   // ---------------------------------------------------------
   void _showLoading() {
+    if (_isLoadingDialogShown || !mounted) return;
+    _isLoadingDialogShown = true;
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => Center(
-        child: Container(
-          width: 120,
-          height: 120,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
+      builder: (_) => const Center(
+        child: Material(
+          color: Colors.transparent,
+          child: SizedBox(
+            width: 120,
+            height: 120,
+            child: Card(
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.all(Radius.circular(18)),
+              ),
+              child: Padding(
+                padding: EdgeInsets.all(25),
+                child: CircularProgressIndicator(strokeWidth: 4),
+              ),
+            ),
           ),
-          padding: const EdgeInsets.all(25),
-          child: const CircularProgressIndicator(strokeWidth: 4),
         ),
       ),
     );
   }
 
   void _hideLoading() {
+    if (!_isLoadingDialogShown || !mounted) return;
+    _isLoadingDialogShown = false;
     if (Navigator.canPop(context)) {
-      Navigator.pop(context);
+      Navigator.of(context, rootNavigator: true).pop();
     }
   }
 
@@ -260,44 +321,55 @@ class _MainScreenState extends State<MainScreen> {
         width: MediaQuery.of(context).size.width * 0.65,
         child: AspectRatio(
           aspectRatio: 1,
-          child: GestureDetector(
-            onTap: _openCamera,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 260),
-              curve: Curves.easeOut,
-              decoration: BoxDecoration(
-                color: cs.primaryContainer,
-                borderRadius: BorderRadius.circular(22),
-                boxShadow: [
-                  BoxShadow(
-                    color: cs.shadow.withOpacity(0.15),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircleAvatar(
-                    radius: 45,
-                    backgroundColor: cs.primary,
-                    child: Icon(
-                      Icons.camera_alt,
-                      color: cs.onPrimary,
-                      size: 62,
+          child: AbsorbPointer(
+            absorbing: _isProcessing,
+            child: InkWell(
+              onTap: _isProcessing ? null : _openCamera,
+              borderRadius: BorderRadius.circular(22),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: cs.primaryContainer,
+                  borderRadius: BorderRadius.circular(22),
+                  boxShadow: [
+                    BoxShadow(
+                      color: cs.shadow.withOpacity(0.15),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    "Scan to Learn",
-                    style: TextStyle(
-                      fontSize: 20,
-                      color: cs.primary,
-                      fontWeight: FontWeight.w700,
+                  ],
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircleAvatar(
+                      radius: 45,
+                      backgroundColor: cs.primary,
+                      child: _isProcessing
+                          ? const SizedBox(
+                              width: 40,
+                              height: 40,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 3,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : Icon(
+                              Icons.camera_alt,
+                              color: cs.onPrimary,
+                              size: 62,
+                            ),
                     ),
-                  )
-                ],
+                    const SizedBox(height: 20),
+                    Text(
+                      _isProcessing ? "Processing..." : "Scan to Learn",
+                      style: TextStyle(
+                        fontSize: 20,
+                        color: cs.primary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    )
+                  ],
+                ),
               ),
             ),
           ),

@@ -1,6 +1,6 @@
-from langchain_core.prompts import PromptTemplate
-from langchain_core.output_parsers import PydanticOutputParser
-from langchain_core.messages import HumanMessage
+from langchain.prompts import PromptTemplate
+from langchain.output_parsers import PydanticOutputParser
+from langchain.schema import HumanMessage
 from typing import Optional
 from config import llm, is_ai_enabled
 from models.notes_models import NotesResponse

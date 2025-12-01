@@ -21,15 +21,28 @@ async def upload_scan(request: Request, file: UploadFile = File(...)):
         saved_path = await save_scan(file)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        print(f"❌ Error saving scan: {exc}")
+        raise HTTPException(status_code=500, detail="Failed to save image") from exc
 
-    topic, variables = await detect_topic(saved_path)
+    try:
+        topic, variables = await detect_topic(saved_path)
+    except Exception as exc:
+        print(f"❌ Error detecting topic: {exc}")
+        # Return fallback values instead of crashing
+        topic = "Unknown"
+        variables = []
 
-    record_id = await save_scan_history(
-        user_id=user_id,
-        image_path=saved_path,
-        topic=topic,
-        variables=variables,
-    )
+    try:
+        record_id = await save_scan_history(
+            user_id=user_id,
+            image_path=saved_path,
+            topic=topic,
+            variables=variables,
+        )
+    except Exception as exc:
+        print(f"⚠ Warning: Failed to save scan history: {exc}")
+        record_id = "error-saving-history"
 
     return {
         "status": "success",

@@ -1,22 +1,52 @@
 # services/ai_detector.py
 
-import google.generativeai as genai
 import json
 import re
-import os
+from pathlib import Path
+from typing import List, Tuple
 
-async def detect_topic(image_path: str):
+import google.generativeai as genai
+
+from config import GEMINI_API_KEY
+
+
+def _ensure_genai_configured() -> bool:
+    """
+    Configure the Gemini client once using the shared API key.
+    Returns True if configuration is available, False otherwise.
+    """
+    if not GEMINI_API_KEY:
+        print(
+            "⚠ GEMINI_API_KEY is not set. "
+            "Topic detection will be disabled and return fallback values."
+        )
+        return False
+
+    # google-generativeai is configured globally; calling this multiple times is cheap.
+    genai.configure(api_key=GEMINI_API_KEY)
+    return True
+
+
+async def detect_topic(image_path: str) -> Tuple[str, List[str]]:
     """
     Detect STEM topic + variables from an image using Gemini 2.0 Flash.
     Ensures clean JSON output and supports various formats returned by Gemini.
     """
 
+    # Ensure the Gemini client is ready
+    if not _ensure_genai_configured():
+        return "Unknown", []
+
     # --- Read image bytes ---
-    with open(image_path, "rb") as img:
-        img_bytes = img.read()
+    path = Path(image_path)
+    if not path.is_file():
+        print(f"❌ ai_detector: image file not found at {image_path}")
+        return "Unknown", []
+
+    img_bytes = path.read_bytes()
 
     # --- Auto-detect MIME type ---
-    ext = image_path.lower()
+    ext = path.suffix.lower()
     if ext.endswith(".jpg") or ext.endswith(".jpeg"):
         mime_type = "image/jpeg"
     else:
