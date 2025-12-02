@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
@@ -32,234 +31,136 @@ class ScanResultScreen extends StatefulWidget {
 
 class _ScanResultScreenState extends State<ScanResultScreen> {
   final Map<String, bool> expanded = {};
-  
+
   VisualTemplate? visualiserTemplate;
   Widget? visualiserWidget;
   bool loadingVisualiser = true;
-  
+
   final String serverIp = "http://10.0.2.2:8000";
 
   @override
   void initState() {
     super.initState();
-    
-    // Debug logging
-    print("🔍 ScanResultScreen initialized");
-    print("🔍 Topic: ${widget.topic}");
-    print("🔍 Variables: ${widget.variables}");
-    print("🔍 Image Path: ${widget.imagePath}");
-    print("🔍 Notes JSON type: ${widget.notesJson.runtimeType}");
-    print("🔍 Notes JSON keys: ${widget.notesJson.keys.toList()}");
-    print("🔍 Notes JSON isEmpty: ${widget.notesJson.isEmpty}");
-    
+
+    debugPrint("SCAN RESULT START");
+    debugPrint("Topic: ${widget.topic}");
+    debugPrint("Variables: ${widget.variables}");
+    debugPrint("Notes Keys: ${widget.notesJson.keys}");
+
     for (var key in widget.notesJson.keys) {
       expanded[key] = false;
-      print("🔍 Notes key '$key' has value type: ${widget.notesJson[key].runtimeType}");
     }
-    
+
     _loadVisualiser();
   }
-  
+
+  // ==========================================================
+  // VISUALISER LOADER
+  // ==========================================================
   Future<void> _loadVisualiser() async {
     setState(() => loadingVisualiser = true);
 
     try {
-      // Use authenticated headers so backend visualiser routes can read the Firebase user.
       final auth = context.read<FirebaseAuthService>();
       final token = await auth.getIdToken();
 
       if (token == null) {
-        debugPrint("⚠ No auth token for visualiser");
-        if (mounted) {
-          setState(() => loadingVisualiser = false);
-        }
+        debugPrint("❌ No Firebase token");
+        if (mounted) setState(() => loadingVisualiser = false);
         return;
       }
 
-      final url = Uri.parse('$serverIp/visualiser/generate');
       final response = await http.post(
-        url,
+        Uri.parse("$serverIp/visualiser/generate"),
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token",
         },
         body: jsonEncode({
-          'topic': widget.topic,
-          'variables': widget.variables,
+          "topic": widget.topic,
+          "variables": widget.variables,
         }),
-      ).timeout(const Duration(seconds: 20));
+      );
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final templateJson = data['template'] as Map<String, dynamic>;
-        final template = VisualTemplate.fromJson(templateJson);
+      if (response.statusCode != 200) {
+        debugPrint("❌ Visualiser API Error: ${response.statusCode}");
+        if (mounted) setState(() => loadingVisualiser = false);
+        return;
+      }
 
-        final templateId = template.templateId.toLowerCase();
-        Widget? newWidget;
+      final data = jsonDecode(response.body);
+      final template = VisualTemplate.fromJson(data["template"]);
 
-        final p = template.parameters;
-        double getVal(String key) => p[key]?.value ?? 0.0;
-
-        if (templateId.contains('projectile')) {
-          newWidget = ProjectileMotionWidget(
-            U: getVal('U'),
-            theta: getVal('theta'),
-            g: getVal('g'),
-          );
-        } else if (templateId.contains('free') || templateId.contains('fall')) {
-          newWidget = FreeFallWidget(
-            h: getVal('h'),
-            g: getVal('g'),
-          );
-        } else if (templateId.contains('shm')) {
-          newWidget = SHMWidget(
-            A: getVal('A'),
-            m: getVal('m'),
-            k: getVal('k'),
-          );
-        } else if (templateId.contains('kinematics')) {
-          newWidget = KinematicsWidget(
-            u: getVal('u'),
-            a: getVal('a'),
-            tMax: getVal('t_max'),
-          );
-        } else if (templateId.contains('optics')) {
-          newWidget = OpticsWidget(
-            f: getVal('f'),
-            u: getVal('u'),
-            h_o: getVal('h_o'),
-          );
-        }
-
-        if (mounted) {
-          setState(() {
-            visualiserTemplate = template;
-            visualiserWidget = newWidget;
-            loadingVisualiser = false;
-          });
-        }
-      } else {
-        debugPrint("⚠ Visualiser API error: ${response.statusCode} - ${response.body}");
-        if (mounted) {
-          setState(() => loadingVisualiser = false);
-        }
+      if (mounted) {
+        setState(() {
+          visualiserTemplate = template;
+          visualiserWidget = _createVisualiser(template);
+          loadingVisualiser = false;
+        });
       }
     } catch (e) {
-      debugPrint("❌ Visualiser load error: $e");
-      if (mounted) {
-        setState(() => loadingVisualiser = false);
-      }
+      debugPrint("❌ Visualiser error: $e");
+      if (mounted) setState(() => loadingVisualiser = false);
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
+  // ==========================================================
+  // CREATE VISUALISER WIDGET
+  // ==========================================================
+  Widget? _createVisualiser(VisualTemplate template) {
+    double getVal(String key) {
+      final raw = template.parameters[key]?.value;
 
-    final deepBlue = cs.primary;
-    final primaryColor = cs.primaryContainer;
-    final cardColor = theme.cardColor;
-    final background = theme.scaffoldBackgroundColor;
+      if (raw == null) return 0.0;
 
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        backgroundColor: background,
+      if (raw is num) return raw.toDouble();
 
-        // ---------------------------------------------------------
-        // NEW POLISHED APP BAR
-        // ---------------------------------------------------------
-        appBar: AppBar(
-          elevation: 0,
-          backgroundColor: primaryColor,
-          iconTheme: IconThemeData(color: deepBlue),
+    }
 
-          title: Text(
-            "Scan Result",
-            style: TextStyle(
-              color: deepBlue,
-              fontWeight: FontWeight.w700,
-              fontSize: 22,
-              letterSpacing: 0.3,
-            ),
-          ),
-          centerTitle: true,
+    final id = (template.templateId ?? '')
+        .toLowerCase()
+        .replaceAll("_", "")
+        .replaceAll("-", "");
 
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(
-              bottom: Radius.circular(26),
-            ),
-          ),
+    if (id.contains("projectile")) {
+      return ProjectileMotionWidget(
+        U: getVal("U"),
+        theta: getVal("theta"),
+        g: getVal("g"),
+      );
+    }
 
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(65),
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 10, left: 16, right: 16),
-              child: Container(
-                height: 48,
-                decoration: BoxDecoration(
-                  color: deepBlue.withOpacity(0.10),
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                child: TabBar(
-                  dividerColor: Colors.transparent,
-                  labelColor: Colors.white,
-                  unselectedLabelColor: deepBlue.withOpacity(0.7),
+    if (id.contains("freefall") || id.contains("fall")) {
+      return FreeFallWidget(h: getVal("h"), g: getVal("g"));
+    }
 
-                  indicator: BoxDecoration(
-                    borderRadius: BorderRadius.circular(30),
-                    gradient: LinearGradient(
-                      colors: [
-                        deepBlue,
-                        deepBlue.withOpacity(0.85),
-                      ],
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: deepBlue.withOpacity(0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
-                      )
-                    ],
-                  ),
+    if (id.contains("shm") || id.contains("harmonic")) {
+      return SHMWidget(A: getVal("A"), m: getVal("m"), k: getVal("k"));
+    }
 
-                  indicatorSize: TabBarIndicatorSize.tab,
-                  labelStyle: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                  ),
-                  unselectedLabelStyle: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
+    if (id.contains("kinematics")) {
+      return KinematicsWidget(
+        u: getVal("u"),
+        a: getVal("a"),
+        tMax: getVal("t_max"),
+      );
+    }
 
-                  tabs: const [
-                    Tab(text: "AI Visualiser"),
-                    Tab(text: "AI Notes"),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
+    if (id.contains("optics") || id.contains("lens")) {
+      return OpticsWidget(f: getVal("f"), u: getVal("u"), h_o: getVal("h_o"));
+    }
 
-        // ---------------------------------------------------------
-        // BODY
-        // ---------------------------------------------------------
-        body: TabBarView(
-          children: [
-            _visualiser(deepBlue),
-            _notes(cardColor, deepBlue),
-          ],
-        ),
+    return const Center(
+      child: Text(
+        "No visualisation available for this topic",
+        style: TextStyle(fontSize: 16),
       ),
     );
   }
 
-  // ---------------------------------------------------------
-  // VISUALISER TAB
-  // ---------------------------------------------------------
+  // ==========================================================
+  // VISUALISER TAB UI
+  // ==========================================================
   Widget _visualiser(Color deepBlue) {
     if (loadingVisualiser) {
       return Center(
@@ -267,15 +168,8 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             CircularProgressIndicator(color: deepBlue),
-            const SizedBox(height: 16),
-            Text(
-              "Loading Visualiser...",
-              style: TextStyle(
-                color: deepBlue,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            const SizedBox(height: 12),
+            Text("Loading visualiser...", style: TextStyle(color: deepBlue)),
           ],
         ),
       );
@@ -283,73 +177,77 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
 
     if (visualiserWidget == null) {
       return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.error_outline, size: 64, color: deepBlue.withOpacity(0.5)),
-              const SizedBox(height: 16),
-              Text(
-                "Visualiser Not Available",
-                style: TextStyle(
-                  color: deepBlue,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                "Unable to load visualisation for this topic",
-                style: TextStyle(color: deepBlue.withOpacity(0.7), fontSize: 14),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 60, color: deepBlue),
+            const SizedBox(height: 12),
+            Text("No visualiser available", style: TextStyle(color: deepBlue)),
+          ],
         ),
       );
     }
 
     return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          const SizedBox(height: 16),
-          // Display the visualiser widget
           Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
+            height: 300,
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(18),
               boxShadow: [
                 BoxShadow(
-                  color: deepBlue.withOpacity(0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
+                  color: deepBlue.withOpacity(0.10),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: visualiserWidget!,
-            ),
+            child: visualiserWidget,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
+          if (visualiserTemplate != null)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: visualiserTemplate!.parameters.entries.map((e) {
+                  final v = e.value.value;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(e.key, style: TextStyle(color: deepBlue)),
+                        Text(v.toString(), style: TextStyle(color: deepBlue)),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
         ],
       ),
     );
   }
 
-
-  // ---------------------------------------------------------
-  // NOTES
-  // ---------------------------------------------------------
+  // ==========================================================
+  // NOTES TAB
+  // ==========================================================
   Widget _notes(Color cardColor, Color deepBlue) {
-    // Debug logging
-    print("📝 Building notes UI");
-    print("📝 Notes JSON keys: ${widget.notesJson.keys.toList()}");
-    print("📝 Notes JSON: ${widget.notesJson}");
-    
-    // Check for error in response
+    debugPrint("📝 Building notes UI");
+    debugPrint("📝 Notes JSON keys: ${widget.notesJson.keys.toList()}");
+    debugPrint("📝 Notes JSON: ${widget.notesJson}");
+
     if (widget.notesJson.containsKey("error")) {
       return Center(
         child: Padding(
@@ -357,7 +255,11 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.error_outline, size: 64, color: deepBlue.withOpacity(0.5)),
+              Icon(
+                Icons.error_outline,
+                size: 64,
+                color: deepBlue.withOpacity(0.5),
+              ),
               const SizedBox(height: 16),
               Text(
                 "Failed to load notes",
@@ -370,7 +272,10 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
               const SizedBox(height: 8),
               Text(
                 widget.notesJson["error"].toString(),
-                style: TextStyle(color: deepBlue.withOpacity(0.7), fontSize: 14),
+                style: TextStyle(
+                  color: deepBlue.withOpacity(0.7),
+                  fontSize: 14,
+                ),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -378,8 +283,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
         ),
       );
     }
-    
-    // Check for empty notes
+
     if (widget.notesJson.isEmpty) {
       return Center(
         child: Padding(
@@ -387,7 +291,11 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.note_outlined, size: 64, color: deepBlue.withOpacity(0.5)),
+              Icon(
+                Icons.note_outlined,
+                size: 64,
+                color: deepBlue.withOpacity(0.5),
+              ),
               const SizedBox(height: 16),
               Text(
                 "No notes available",
@@ -400,7 +308,10 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
               const SizedBox(height: 8),
               Text(
                 "Notes generation may have failed",
-                style: TextStyle(color: deepBlue.withOpacity(0.7), fontSize: 14),
+                style: TextStyle(
+                  color: deepBlue.withOpacity(0.7),
+                  fontSize: 14,
+                ),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -408,19 +319,20 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
         ),
       );
     }
-    
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         children: widget.notesJson.entries.map((entry) {
           final key = entry.key;
+          expanded.putIfAbsent(key, () => false);
 
           return _expandableCard(
             title: _formatKey(key),
             expanded: expanded[key]!,
             onTap: () => setState(() => expanded[key] = !expanded[key]!),
             child: _buildContent(entry.value, deepBlue),
-            cardColor: cardColor,
+            cardColor: Theme.of(context).cardColor,
             deepBlue: deepBlue,
           );
         }).toList(),
@@ -428,6 +340,9 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
     );
   }
 
+  // ==========================================================
+  // UI Helpers
+  // ==========================================================
   Widget _expandableCard({
     required String title,
     required bool expanded,
@@ -457,8 +372,8 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                     title,
                     style: TextStyle(
                       fontSize: 18,
-                      color: deepBlue,
                       fontWeight: FontWeight.w700,
+                      color: deepBlue,
                     ),
                   ),
                   Icon(
@@ -472,15 +387,16 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
               ),
             ),
           ),
-
           AnimatedCrossFade(
             duration: const Duration(milliseconds: 260),
             crossFadeState: expanded
                 ? CrossFadeState.showSecond
                 : CrossFadeState.showFirst,
             firstChild: const SizedBox.shrink(),
-            secondChild:
-                Padding(padding: const EdgeInsets.all(14), child: child),
+            secondChild: Padding(
+              padding: const EdgeInsets.all(14),
+              child: child,
+            ),
           ),
         ],
       ),
@@ -496,11 +412,15 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: value
-            .map((v) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text("• $v",
-                      style: TextStyle(fontSize: 15, color: deepBlue)),
-                ))
+            .map(
+              (v) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  "• $v",
+                  style: TextStyle(fontSize: 15, color: deepBlue),
+                ),
+              ),
+            )
             .toList(),
       );
     }
@@ -509,29 +429,24 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: value.entries
-            .map((e) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text("${e.key}: ${e.value}",
-                      style: TextStyle(fontSize: 15, color: deepBlue)),
-                ))
+            .map(
+              (e) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  "${e.key}: ${e.value}",
+                  style: TextStyle(fontSize: 15, color: deepBlue),
+                ),
+              ),
+            )
             .toList(),
       );
     }
 
-    return const Text("Unsupported format");
+    return Text(
+      value.toString(),
+      style: TextStyle(fontSize: 15, color: deepBlue),
+    );
   }
-
-  Widget _title(String text, Color deepBlue) => Text(
-        text,
-        style: TextStyle(
-          fontSize: 22,
-          fontWeight: FontWeight.bold,
-          color: deepBlue,
-        ),
-      );
-
-  Widget _value(String text, Color deepBlue) =>
-      Text(text, style: TextStyle(fontSize: 17, color: deepBlue));
 
   String _formatKey(String raw) {
     if (raw.isEmpty) return "";
@@ -539,5 +454,90 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
         .replaceAll("_", " ")
         .trim()
         .replaceFirst(raw[0], raw[0].toUpperCase());
+  }
+
+  // ==========================================================
+  // ROOT BUILD
+  // ==========================================================
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    final deepBlue = cs.primary;
+    final primaryColor = cs.primaryContainer;
+    final cardColor = theme.cardColor;
+    final background = theme.scaffoldBackgroundColor;
+
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: background,
+        appBar: AppBar(
+          elevation: 0,
+          backgroundColor: primaryColor,
+          iconTheme: IconThemeData(color: deepBlue),
+          title: Text(
+            "Scan Result",
+            style: TextStyle(
+              color: deepBlue,
+              fontWeight: FontWeight.w700,
+              fontSize: 22,
+            ),
+          ),
+          centerTitle: true,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(26)),
+          ),
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(65),
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 10, left: 16, right: 16),
+              child: Container(
+                height: 48,
+                decoration: BoxDecoration(
+                  color: deepBlue.withOpacity(0.10),
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: TabBar(
+                  dividerColor: Colors.transparent,
+                  labelColor: Colors.white,
+                  unselectedLabelColor: deepBlue.withOpacity(0.7),
+                  indicator: BoxDecoration(
+                    borderRadius: BorderRadius.circular(30),
+                    gradient: LinearGradient(
+                      colors: [deepBlue, deepBlue.withOpacity(0.85)],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: deepBlue.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  labelStyle: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                  ),
+                  unselectedLabelStyle: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                  tabs: const [
+                    Tab(text: "AI Visualiser"),
+                    Tab(text: "AI Notes"),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        body: TabBarView(
+          children: [_visualiser(deepBlue), _notes(cardColor, deepBlue)],
+        ),
+      ),
+    );
   }
 }
