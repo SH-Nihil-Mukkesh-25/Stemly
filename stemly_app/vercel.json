@@ -2,7 +2,6 @@
     "buildCommand": "bash build.sh",
     "outputDirectory": "build/web",
     "installCommand": "echo 'Skipping install...'",
-    "framework": "other",
     "rewrites": [
         {
             "source": "/(.*)",
