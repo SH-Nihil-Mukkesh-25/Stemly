@@ -25,7 +25,16 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   final ImagePicker _picker = ImagePicker();
-  final String serverIp = "http://10.12.180.151:8080"; 
+  // CONFIGURATION
+  // Set to true for production (APK/Web deployment), false for local dev
+  static const bool _isProduction = false; 
+
+  // PRODUCTION URL (Update this after Vercel deployment)
+  static const String _prodUrl = "https://your-stemly-backend.vercel.app";
+  // DEV URL
+  static const String _devUrl = "http://10.12.180.151:8080";
+
+  final String serverIp = _isProduction ? _prodUrl : _devUrl; 
   
   // OCR Recognizer
   final textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
