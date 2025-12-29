@@ -65,14 +65,10 @@ class FirebaseAuthService extends ChangeNotifier {
   // ---------------------------------------------------------------------------
   Future<UserCredential?> signInWithGoogle() async {
     try {
-      print("🚀 1. Starting Google Sign In...");
       final googleUser = await _googleSignIn.signIn();
-      print("🚀 2. Google User: $googleUser");
-      
       if (googleUser == null) return null;
 
       final googleAuth = await googleUser.authentication;
-      print("🚀 3. Auth: ${googleAuth.accessToken?.substring(0,5)}... ${googleAuth.idToken?.substring(0,5)}...");
 
       if (googleAuth.idToken == null) {
         throw Exception(
@@ -89,17 +85,10 @@ class FirebaseAuthService extends ChangeNotifier {
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
-      print("🚀 4. Credential created");
 
       final userCredential = await _auth.signInWithCredential(credential);
-      print("🚀 5. Signed in with credential: ${userCredential.user?.uid}");
-
       await _cacheAuthState(userCredential.user);
-      print("🚀 6. Auth Cached");
-
       await warmUpBackend();
-      print("🚀 7. Backend warmed");
-      
       notifyListeners();
 
       return userCredential;
