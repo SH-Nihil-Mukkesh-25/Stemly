@@ -1,22 +1,23 @@
-// lib/screens/main_screen.dart
-
 import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:http_parser/http_parser.dart';
 import 'package:provider/provider.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../services/firebase_auth_service.dart';
+import '../services/groq_service.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../storage/history_store.dart';
 import '../models/scan_history.dart';
-import 'scan_result_screen.dart';
+import 'scan_result_screen.dart'; 
 
 class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+  const MainScreen({Key? key}) : super(key: key); 
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -24,22 +25,35 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   final ImagePicker _picker = ImagePicker();
-  final String serverIp = "http://10.0.2.2:8000";
+  final String serverIp = "http://10.12.180.151:8080"; 
+  
+  // OCR Recognizer
+  final textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
+
   bool _isProcessing = false;
   bool _isLoadingDialogShown = false;
+  
+  String _detectedTopic = "Unknown";
+  List<String> _detectedVariables = [];
 
-  // ---------------------------------------------------------
-  // CAMERA PICK
-  // ---------------------------------------------------------
+  @override
+  void dispose() {
+    textRecognizer.close();
+    super.dispose();
+  }
+
+  // ==========================================================
+  // CAMERA PICK -> OCR -> UPLOAD
+  // ==========================================================
   Future<void> _openCamera() async {
-    if (_isProcessing || !mounted) return; // Prevent multiple taps
+    if (_isProcessing || !mounted) return;
     
     try {
       setState(() => _isProcessing = true);
       
       final XFile? photo = await _picker.pickImage(
         source: ImageSource.camera,
-        imageQuality: 85,
+        imageQuality: 100,
       );
       
       if (photo == null || !mounted) {
@@ -49,146 +63,190 @@ class _MainScreenState extends State<MainScreen> {
 
       if (mounted) {
         _showLoading();
-        await _uploadImage(File(photo.path));
+        // 1. Perform OCR extraction
+        final extractedText = await _performOCR(photo.path);
+        
+        // Check if OCR failed or returned very little text
+        // Check if OCR failed or returned very little text
+        // WE ALLOW THIS NOW (Vision Fallback)
+        if (extractedText.trim().length < 5) {
+             debugPrint("OCR text empty/short. Proceeding with Vision AI.");
+        }
+        
+        // 2. Upload Image + Text
+        await _uploadScan(File(photo.path), extractedText);
       }
     } catch (e) {
       if (mounted) {
         _hideLoading();
         setState(() => _isProcessing = false);
         debugPrint("Camera error: $e");
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Camera error: $e")),
-        );
+        _showError("Camera error: $e");
       }
     }
   }
 
-  // ---------------------------------------------------------
-  // UPLOAD IMAGE
-  // ---------------------------------------------------------
-  Future<void> _uploadImage(File imageFile) async {
-    if (!mounted) return;
-    
+  // Show warning when OCR finds no text
+  Future<bool> _showOcrWarning() async {
+    return await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: const [
+            Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+            SizedBox(width: 10),
+            Text("No Text Detected"),
+          ],
+        ),
+        content: const Text(
+          "The image doesn't seem to contain readable text. "
+          "For best results, scan an image with clear text like equations, diagrams with labels, or textbook pages.\n\n"
+          "Do you want to continue anyway?",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("Try Again"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("Continue"),
+          ),
+        ],
+      ),
+    ) ?? false;
+  }
+
+  // ==========================================================
+  // LOCAL OCR (ML KIT)
+  // ==========================================================
+  Future<String> _performOCR(String path) async {
     try {
-      final authService =
-          Provider.of<FirebaseAuthService>(context, listen: false);
+      final inputImage = InputImage.fromFilePath(path);
+      final recognizedText = await textRecognizer.processImage(inputImage);
+      return recognizedText.text;
+    } catch (e) {
+      debugPrint("OCR Failed: $e");
+      return ""; // Fallback to empty text
+    }
+  }
 
-      final token = await authService.getIdToken();
-      if (token == null) {
-        if (mounted) {
-          _hideLoading();
-          setState(() => _isProcessing = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Please log in to scan.")),
-          );
-        }
-        return;
-      }
+  // ==========================================================
+  // UPLOAD (IMAGE + TEXT)
+  // ==========================================================
+  Future<void> _uploadScan(File image, String ocrText) async {
+    if (!mounted) return;
 
-      final uri = Uri.parse("$serverIp/scan/upload");
-      final request = http.MultipartRequest("POST", uri);
-      request.headers["Authorization"] = "Bearer $token";
+    final authService = Provider.of<FirebaseAuthService>(context, listen: false);
+    // Note: We keep groqService for now if needed for other things, but architecture is changing.
+    // final groqService = Provider.of<GroqService>(context, listen: false);
 
-      final mimeType = imageFile.path.toLowerCase().endsWith(".png")
+    final token = await authService.currentUser?.getIdToken();
+
+    if (token == null) {
+      _hideLoading();
+      _showError("Authentication error. Please login again.");
+      setState(() => _isProcessing = false);
+      return;
+    }
+
+    // Prepare Request
+    var request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$serverIp/scan/upload'),
+    );
+
+    request.headers['Authorization'] = 'Bearer $token';
+
+    // Add Image
+    final mimeType = image.path.toLowerCase().endsWith(".png")
           ? MediaType("image", "png")
           : MediaType("image", "jpeg");
 
-      request.files.add(
-        await http.MultipartFile.fromPath(
-          "file",
-          imageFile.path,
-          contentType: mimeType,
-        ),
-      );
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'file',
+        image.path,
+        contentType: mimeType,
+      ),
+    );
 
-      // Add timeout to prevent infinite loading
-      final streamedResponse = await request.send()
-          .timeout(const Duration(seconds: 60), onTimeout: () {
-        throw TimeoutException("Upload timeout after 60 seconds");
+    // Add OCR Text
+    request.fields['ocr_text'] = ocrText;
+
+    debugPrint("📤 Uploading scan with text length: ${ocrText.length}");
+    
+    try {
+      var response = await request.send()
+          .timeout(const Duration(seconds: 180), onTimeout: () {
+        throw TimeoutException("Upload timeout after 180 seconds");
       });
-      
-      final responseBody = await streamedResponse.stream.bytesToString();
+      var responseBody = await response.stream.bytesToString();
 
-      if (streamedResponse.statusCode != 200) {
+      if (response.statusCode == 200) {
+        var data = jsonDecode(responseBody);
+        var topic = data['topic'] ?? "Unknown";
+        List<dynamic> rawVars = data['variables'] ?? [];
+        List<String> variables = rawVars.map((e) => e.toString()).toList();
+        
+        if (mounted) {
+          setState(() {
+            _detectedTopic = topic;
+            _detectedVariables = variables;
+          });
+        }
+        
+        // Auto-fetch notes
+        // Save Image Permanently
+        String savedPath = image.path;
+        try {
+           final appDir = await getApplicationDocumentsDirectory();
+           final scansDir = Directory('${appDir.path}/scans');
+           if (!await scansDir.exists()) await scansDir.create(recursive: true);
+           final fileName = 'scan_${DateTime.now().millisecondsSinceEpoch}${image.path.endsWith('.png') ? '.png' : '.jpg'}';
+           final localPath = '${scansDir.path}/$fileName';
+           await File(image.path).copy(localPath);
+           savedPath = localPath;
+        } catch (e) {
+           debugPrint("⚠️ Failed to save local image: $e");
+        }
+
+        // Auto-fetch notes
+        // We pass 'savedPath' (LOCAL PERMANENT) so the UI can display it
+        await _fetchNotes(topic, variables, savedPath, token, ocrText);
+
+      } else {
         if (mounted) {
           _hideLoading();
           setState(() => _isProcessing = false);
+          _showError("Upload Failed: ${response.statusCode}");
         }
-        throw Exception("Upload failed: ${streamedResponse.statusCode} - $responseBody");
-      }
-
-      final jsonResponse = jsonDecode(responseBody);
-      final String topic = jsonResponse["topic"] ?? "Unknown";
-      final List<String> variables =
-          List<String>.from(jsonResponse["variables"] ?? []);
-      final String? serverImagePath = jsonResponse["image_path"];
-
-      // Fetch AI notes with timeout (non-blocking)
-      Map<String, dynamic> notes = {};
-      try {
-        notes = await _fetchNotes(topic, variables, serverImagePath, token)
-            .timeout(const Duration(seconds: 30));
-      } catch (e) {
-        debugPrint("Notes fetch timeout/error: $e");
-        notes = {"error": "Notes generation timed out or failed"};
-      }
-
-      // Save scan history locally
-      HistoryStore.add(
-        ScanHistory(
-          topic: topic,
-          variables: variables,
-          imagePath: imageFile.path,
-          notesJson: notes,
-          timestamp: DateTime.now(),
-        ),
-      );
-
-      if (mounted) {
-        _hideLoading();
-        setState(() => _isProcessing = false);
-
-        // Navigate even if notes failed
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ScanResultScreen(
-              topic: topic,
-              variables: variables,
-              notesJson: notes,
-              imagePath: imageFile.path,
-            ),
-          ),
-        );
       }
     } catch (e) {
+      debugPrint("❌ Error: $e");
       if (mounted) {
         _hideLoading();
         setState(() => _isProcessing = false);
-        debugPrint("Upload error: $e");
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Error: ${e.toString().replaceAll('TimeoutException: ', '')}"),
-            duration: const Duration(seconds: 4),
-          ),
-        );
+        _showError("Connection Error: ${e.toString().split(':')[0]}");
       }
     }
   }
 
-  // ---------------------------------------------------------
-  // FETCH NOTES
-  // ---------------------------------------------------------
-  Future<Map<String, dynamic>> _fetchNotes(
+  // ==========================================================
+  // FETCH NOTES -> NAVIGATE
+  // ==========================================================
+  Future<void> _fetchNotes(
     String topic,
     List<String> variables,
     String? imagePath,
     String token,
+    String ocrText,
   ) async {
     try {
-      print("📡 Fetching notes for topic: $topic, variables: $variables");
       final url = Uri.parse("$serverIp/notes/generate");
-
+      
+      // We pass OCR text here too if needed, but for now stick to protocol
       final res = await http.post(
         url,
         headers: {
@@ -199,30 +257,58 @@ class _MainScreenState extends State<MainScreen> {
           "topic": topic,
           "variables": variables,
           "image_path": imagePath,
+          "ocr_text": ocrText, // Sending this if backend needs it for notes
         }),
-      );
-
-      print("📡 Notes response status: ${res.statusCode}");
-      print("📡 Notes response body: ${res.body}");
+      ).timeout(const Duration(seconds: 180));
 
       if (res.statusCode == 200) {
         final parsed = jsonDecode(res.body);
-        print("📡 Parsed response keys: ${parsed.keys.toList()}");
-        print("📡 Notes field exists: ${parsed.containsKey('notes')}");
-        return parsed["notes"] ?? {};
-      }
+        final notesData = parsed["notes"] ?? {};
 
-      print("❌ Notes request failed with status ${res.statusCode}");
-      return {"error": "Notes request failed: ${res.statusCode}"};
+        // Save History with LOCAL image path for display
+        HistoryStore.add(ScanHistory(
+          imagePath: imagePath ?? "", // This should be the local path
+          topic: topic,
+          variables: variables,
+          notesJson: notesData,
+          timestamp: DateTime.now(),
+        ));
+
+        if (mounted) {
+          _hideLoading();
+          setState(() => _isProcessing = false);
+          
+          Navigator.push(
+           context,
+           MaterialPageRoute(
+             builder: (_) => ScanResultScreen(
+               topic: topic,
+               variables: variables,
+               notesJson: notesData,
+               imagePath: imagePath ?? "",
+             ),
+           ),
+         );
+        }
+      } else {
+        if (mounted) { 
+           _hideLoading();
+           setState(() => _isProcessing = false);
+           _showError("Failed to fetch notes: ${res.statusCode}");
+        }
+      }
     } catch (e) {
-      print("❌ Notes fetch error: $e");
-      return {"error": "Connection error: $e"};
+      if (mounted) {
+        _hideLoading();
+        setState(() => _isProcessing = false);
+        _showError("Connection error fetching notes");
+      }
     }
   }
 
-  // ---------------------------------------------------------
-  // LOADING DIALOG
-  // ---------------------------------------------------------
+  // ==========================================================
+  // HELPERS
+  // ==========================================================
   void _showLoading() {
     if (_isLoadingDialogShown || !mounted) return;
     _isLoadingDialogShown = true;
@@ -259,9 +345,18 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
-  // ---------------------------------------------------------
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+
+  // ==========================================================
   // UI
-  // ---------------------------------------------------------
+  // ==========================================================
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);

@@ -1,78 +1,112 @@
-import os
 import json
-from typing import Dict, Any
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.prompts import PromptTemplate
-from langchain.output_parsers import PydanticOutputParser
+import re
+import requests
+from typing import Dict, Any, Optional
+from config import OLLAMA_BASE_URL, LOCAL_MODEL, AIML_API_KEY
 from pydantic import BaseModel, Field
-from config import GEMINI_API_KEY
 
 class ParameterUpdate(BaseModel):
     updated_parameters: Dict[str, Any] = Field(description="Dictionary of updated parameter values. Empty if no changes needed.")
-    ai_response: str = Field(description="Response to the user. If parameters changed, explain what happened. If the user asked a question, answer it.")
+    ai_response: str = Field(description="Response to the user.")
 
-async def adjust_parameters_with_ai(template_id: str, current_params: Dict[str, Any], user_prompt: str) -> Dict[str, Any]:
-    """
-    Uses Gemini to interpret user prompt and update visualiser parameters.
-    """
+def clean_json_output(text: str):
+    text = text.strip()
+    text = re.sub(r"```json", "", text)
+    text = re.sub(r"```", "", text)
+    text = text.strip()
     try:
-        if not GEMINI_API_KEY:
-            print("⚠ GEMINI_API_KEY not set")
-            return {"updated_parameters": {}, "ai_response": "AI is not configured."}
+        return json.loads(text)
+    except:
+        return None
 
-        llm = ChatGoogleGenerativeAI(
-            model="gemini-1.5-flash", 
-            temperature=0.3, 
-            google_api_key=GEMINI_API_KEY
-        )
+async def adjust_parameters_with_ai(template_id: str, current_params: Dict[str, Any], user_prompt: str, api_key: str = None) -> Dict[str, Any]:
+    """
+    Uses Local LLM (Ollama) to interpret user prompt and update visualiser parameters.
+    """
+    system_prompt = f"""
+    You are an expert Physics Tutor and Simulation Controller.
+    
+    Current Simulation: {template_id}
+    Current Parameters: {current_params}
+    User Request: "{user_prompt}"
+    
+    Tasks:
+    1. If user asks to change simulation (e.g. "faster", "angle 45"), update relevant parameters.
+    2. If user asks a question, answer it.
+    
+    Output strictly as JSON:
+    {{
+      "updated_parameters": {{ "velocity": 20 }},
+      "ai_response": "I have set the velocity to 20 m/s."
+    }}
+    """
+    
+    payload = {
+        "model": LOCAL_MODEL,
+        "prompt": system_prompt,
+        "stream": False,
+        "format": "json"
+    }
+    
+    try:
+        r = requests.post(f"{OLLAMA_BASE_URL}/api/generate", json=payload, timeout=60)
+        r.raise_for_status()
+        data = clean_json_output(r.json().get("response", ""))
         
-        parser = PydanticOutputParser(pydantic_object=ParameterUpdate)
-        
-        prompt = PromptTemplate(
-            template="""
-            You are an expert Physics Tutor and Simulation Controller.
-            
-            Current Simulation: {template_id}
-            Current Parameters: {current_params}
-            
-            User Request: "{user_prompt}"
-            
-            Your tasks:
-            1. Analyze the user's request.
-            2. If they ask to change the simulation (e.g., "make it faster", "set angle to 45"), determine the necessary parameter updates.
-               - Only change relevant parameters.
-               - Ensure values are physically reasonable.
-            3. If they ask a question (e.g., "why does it curve?", "what is velocity?"), answer it clearly and concisely.
-            4. If they do both, do both.
-            
-            Return a JSON with:
-            - "updated_parameters": A dictionary of changed parameters (or empty if none).
-            - "ai_response": A natural language response to the user.
-            
-            {format_instructions}
-            """,
-            input_variables=["template_id", "current_params", "user_prompt"],
-            partial_variables={"format_instructions": parser.get_format_instructions()}
-        )
-        
-        chain = prompt | llm | parser
-        
-        result = await chain.ainvoke({
-            "template_id": template_id,
-            "current_params": current_params,
-            "user_prompt": user_prompt
-        })
-        
-        return {
-            "updated_parameters": result.updated_parameters,
-            "ai_response": result.ai_response
-        }
+        if data:
+            return {
+                "updated_parameters": data.get("updated_parameters", {}),
+                "ai_response": data.get("ai_response", "")
+            }
         
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        print(f"AI Parameter Adjustment Error: {e}")
-        return {
-            "updated_parameters": {},
-            "ai_response": "I'm having trouble connecting to my brain right now. Please try again."
-        }
+        print(f"❌ Visualiser Params Error: {e}")
+
+    return {"updated_parameters": {}, "ai_response": "AI Error."}
+
+
+def generate_visualiser_image(prompt: str) -> Optional[str]:
+    """
+    Generates an image using AIML API (flux/schnell).
+    Returns the Image URL.
+    """
+    if not AIML_API_KEY:
+        print("❌ AIML_API_KEY missing.")
+        return None
+
+    url = "https://api.aimlapi.com/v1/images/generations/"
+    
+    payload = {
+      "model": "flux/schnell",
+      "prompt": f" Educational Diagram: {prompt}",
+      "n": 1,
+      "size": "512x512" 
+    }
+    
+    headers = {
+      "Authorization": f"Bearer {AIML_API_KEY}", 
+      "content-type": "application/json"
+    }
+
+    try:
+        print(f"DEBUG: Generating image via AIML API for prompt: {prompt[:30]}...")
+        response = requests.post(url, json=payload, headers=headers, timeout=30)
+        response.raise_for_status()
+        res_json = response.json()
+        
+        # AIML API (OpenAI compatible) returns:
+        # { "created": 123, "data": [ { "url": "..." } ] }
+        # OR sometimes specific format. Based on user script:
+        # print("Generation:", response.json())
+        
+        # Flux response from AIML might be distinct.
+        # Assuming OpenAI format standard for /generations
+        if "data" in res_json and len(res_json["data"]) > 0:
+             return res_json["data"][0].get("url")
+             
+        # Or fall back inspection
+        return None
+
+    except Exception as e:
+        print(f"❌ Image Gen Error: {e}")
+        return None

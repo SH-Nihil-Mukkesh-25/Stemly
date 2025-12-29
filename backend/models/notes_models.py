@@ -6,6 +6,7 @@ class NotesGenerateRequest(BaseModel):
     topic: str
     variables: List[str]
     image_path: Optional[str] = None
+    ocr_text: Optional[str] = None
 
 
 class NotesFollowUpRequest(BaseModel):

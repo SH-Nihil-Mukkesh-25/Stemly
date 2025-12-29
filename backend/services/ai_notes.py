@@ -1,89 +1,10 @@
-from langchain.prompts import PromptTemplate
-from langchain.output_parsers import PydanticOutputParser
-from langchain.schema import HumanMessage
-from typing import Optional
-from config import llm, is_ai_enabled
-from models.notes_models import NotesResponse
-from utils.file_utils import resolve_scan_path
-import google.generativeai as genai
 import json
 import re
-
-parser = PydanticOutputParser(pydantic_object=NotesResponse)
-FORMAT_INSTRUCTIONS = parser.get_format_instructions()
-
-NOTES_GENERATE_PROMPT = PromptTemplate(
-    input_variables=["topic", "variables"],
-    partial_variables={"format_instructions": FORMAT_INSTRUCTIONS},
-    template="""
-You are an AI Study Assistant that generates study notes for a student based on a scanned problem image.
-
-A separate vision model has already analyzed the IMAGE and extracted:
-- topic (high-level concept): "{topic}"
-- variables appearing in the image (symbols / labels): {variables}
-
-Your job:
-1. Infer the most likely subject and sub‑topic from this information (Physics, Chemistry, Biology, Math, CS, Economics, etc.).
-2. Base your reasoning on what such an image would typically contain (diagrams, labels, graphs, equations, circuit symbols, biological structures, chemical apparatus, geometrical shapes, flowcharts, paragraph notes).
-3. Avoid assumptions that are clearly unrelated to the topic/variables.
-
-Very important behaviour (domain bias):
-- This application is for SCHOOL / UNIVERSITY STEM subjects (physics, math, chemistry, biology, engineering, economics, etc.), NOT for teaching programming APIs or language-specific string functions.
-- Do NOT default to programming / string manipulation / generic “string” explanations unless the topic or variables EXPLICITLY indicate Computer Science or programming (e.g., words like "Python", "Java", "C++", "code", "algorithm", "string data type", "array", etc.).
-- If the topic is a vague word like "string" or a single generic identifier, interpret it as a **STEM concept** first (e.g., a physical string in waves/vibrations, or a labelled quantity in a formula), NOT as a programming string data type.
-- If the topic and variables clearly refer to physics → talk physics.
-- If biology → talk biology.
-- If chemistry → talk chemistry.
-- If economics → talk economics.
-- If it looks like generic notes / text → extract main ideas and summarise them as study notes.
-- If unsure, choose the MOST LIKELY subject based on the topic and variables.
-
-You must produce structured study notes as JSON only, following this schema:
-{format_instructions}
-
-Guidelines for the content fields:
-- explanation: clear, student‑friendly explanation of the concept.
-- variable_breakdown: explain each symbol / variable and what it represents physically or conceptually.
-- formulas: include only relevant formulas and briefly explain each one.
-- example: one concrete, worked example that matches the topic and variables.
-- mistakes: common conceptual or calculation errors students make in this STEM context.
-- practice_questions: 3–5 exam‑style questions that match the same concept level (NO programming exercises unless the topic explicitly mentions code/CS).
-- summary: short bullet‑style recap of the key ideas.
-- resources: links or pointers to high‑quality **STEM learning resources** (e.g., Khan Academy, HyperPhysics, university lecture notes, standard educational references). Do NOT link to general programming docs like W3Schools string documentation or Java/Python API docs unless the topic explicitly says it is about programming.
-
-STRICT OUTPUT RULES:
-- Output ONLY valid JSON.
-- No backticks.
-- No markdown.
-- Follow this exact structure:
-{format_instructions}
-
-Now generate the JSON:
-"""
-)
-
-
-NOTES_FOLLOWUP_PROMPT = PromptTemplate(
-    input_variables=["topic", "previous_notes", "user_prompt"],
-    partial_variables={"format_instructions": FORMAT_INSTRUCTIONS},
-    template="""
-You are an AI Study Assistant continuing a study session about a scanned problem image.
-
-Context:
-- High‑level topic (from the image): {topic}
-- Existing structured notes (generated from the image): {previous_notes}
-
-The student now asks a follow‑up question:
-"{user_prompt}"
-
-STRICT RULES:
-- Output ONLY valid JSON.
-- No markdown.
-- Follow this JSON structure:
-{format_instructions}
-"""
-)
-
+import requests
+from typing import Optional, List
+from fastapi.concurrency import run_in_threadpool
+from config import OLLAMA_BASE_URL, LOCAL_MODEL, OPENROUTER_API_KEY
+from models.notes_models import NotesResponse
 
 def clean_json_output(text: str):
     text = text.strip()
@@ -95,79 +16,159 @@ def clean_json_output(text: str):
     except:
         return None
 
+def _call_openrouter_api_sync(payload: dict, timeout: int = 120):
+    """Blocking call to OpenRouter API."""
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "http://localhost",
+        "X-Title": "Stemly"
+    }
+    try:
+        url = f"{OLLAMA_BASE_URL}/chat/completions"
+        response = requests.post(url, json=payload, headers=headers, timeout=timeout)
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        print(f"❌ OpenRouter Sync Error: {e}")
+        if hasattr(e, 'response') and e.response:
+             print(f"Response Body: {e.response.text}")
+        return None
 
-async def generate_notes(topic: str, variables: list, image_path: Optional[str] = None):
-    if not is_ai_enabled():
-        raise RuntimeError("Gemini AI is not configured.")
+async def generate_notes(
+    topic: str, 
+    variables: list, 
+    image_path: Optional[str] = None, 
+    ocr_text: Optional[str] = None, 
+    api_key: str = None
+) -> NotesResponse:
+    
+    # Context
+    context = f"Topic: {topic}\nVars: {variables}"
+    if ocr_text:
+        context += f"\nOCR: {ocr_text[:1000]}"
 
-    # If we have access to the scanned image, let Gemini see it directly.
-    if image_path:
-        try:
-            local_path = resolve_scan_path(image_path)
-        except ValueError as exc:
-            print(f"⚠ Invalid scan path provided for notes: {exc}")
-        else:
-            # Detect MIME type from extension.
-            ext = local_path.suffix.lower()
-            if ext in (".jpg", ".jpeg"):
-                mime_type = "image/jpeg"
-            else:
-                mime_type = "image/png"
+    system_prompt = """
+    Create DETAILED, STUDENT-FRIENDLY study notes in strict JSON format.
+    
+    Guidelines:
+    - **Explanation**: Write a clear, 3-4 sentence paragraph defining the concept simply. Use analogies if helpful.
+    - **Variable Breakdown**: Define each variable clearly with units.
+    - **Example**: Provide a concrete, step-by-step example problem with numbers.
+    - **Summary**: Key takeaways for quick revision.
+    
+    Output strictly as JSON:
+    {
+      "explanation": "Detailed explanation of the concept...",
+      "variable_breakdown": {"v": "velocity (m/s)", "t": "time (s)"},
+      "formulas": ["F = ma"],
+      "example": "If a car accelerates...",
+      "mistakes": ["Confusing speed with velocity"],
+      "practice_questions": ["What is the force if...?", "Calculate time when..."],
+      "summary": ["Force causes acceleration", "Mass is inertia"],
+      "resources": ["Newton's Laws Video"]
+    }
+    """
+    
+    payload = {
+        "model": LOCAL_MODEL, # "gpt-4o"
+        "messages": [
+             {"role": "system", "content": system_prompt},
+             {"role": "user", "content": f"Topic: {topic}. Context: {context}"}
+        ],
+        "max_tokens": 1000,
+        "temperature": 0.7
+    }
 
-            with open(local_path, "rb") as img:
-                img_bytes = img.read()
+    print(f"DEBUG: Generating notes via OpenRouter ({LOCAL_MODEL})...")
 
-            system_prompt = NOTES_GENERATE_PROMPT.format(
-                topic=topic,
-                variables=variables,
-            )
+    data = await run_in_threadpool(_call_openrouter_api_sync, payload, timeout=120)
 
-            model = genai.GenerativeModel("gemini-2.0-flash")
-            try:
-                response = model.generate_content(
-                    [
-                        system_prompt,
-                        {
-                            "mime_type": mime_type,
-                            "data": img_bytes,
-                        },
-                    ]
-                )
-            except Exception as e:
-                print(f"❌ Gemini API Error in ai_notes: {e}")
-                raise ValueError("Failed to generate notes from image due to AI service error.") from e
+    if not data:
+        print("⚠ Notes generation failed. Returning fallback.")
+        return NotesResponse(
+            explanation="Notes generation failed. Please try again.",
+            variable_breakdown={},
+            formulas=[],
+            example="Server error.",
+            mistakes=[],
+            practice_questions=[],
+            summary=["Could not generate notes."],
+            resources=[]
+        )
 
-            raw_text = response.text
-            data = clean_json_output(raw_text)
-            if data is None:
-                raise ValueError("Invalid JSON from Gemini Notes (image-based)")
+    try:
+        raw_text = data['choices'][0]['message']['content']
+        parsed = clean_json_output(raw_text)
+        
+        if parsed:
+            # Ensure types match before returning
+            if isinstance(parsed.get('variable_breakdown'), list):
+                 parsed['variable_breakdown'] = {f"var_{i}": v for i, v in enumerate(parsed['variable_breakdown'])}
+            if isinstance(parsed.get('summary'), str):
+                 parsed['summary'] = [parsed['summary']]
+                 
+            return NotesResponse(**parsed)
+    except Exception:
+        pass
 
-            return NotesResponse(**data)
-
-    # Fallback: text-only notes generation via LangChain using topic + variables.
-    prompt = NOTES_GENERATE_PROMPT.format(
-        topic=topic,
-        variables=variables,
+    return NotesResponse(
+            explanation="Error parsing notes.",
+            variable_breakdown={},
+            formulas=[],
+            example="",
+            mistakes=[],
+            practice_questions=[],
+            summary=["Invalid AI response."],
+            resources=[]
     )
 
-    response = llm.invoke([HumanMessage(content=prompt)])
-    raw_text = response.content
-    data = clean_json_output(raw_text)
-    return NotesResponse(**data)
 
+async def follow_up_notes(topic: str, previous_notes: dict, user_prompt: str, api_key: str = None) -> NotesResponse:
+    
+    context = f"Topic: {topic}\nSummary: {previous_notes.get('summary', '')}"
+    
+    system_prompt = """
+    Answer briefly. Return strict JSON matching Schema.
+    Schema:
+    {
+      "explanation": "Answer",
+      "variable_breakdown": {}, 
+      "formulas": [],
+      "example": "",
+      "mistakes": [],
+      "practice_questions": [], 
+      "summary": ["Recap"],
+      "resources": []
+    }
+    """
+    
+    payload = {
+        "model": LOCAL_MODEL,
+        "messages": [
+             {"role": "system", "content": system_prompt},
+             {"role": "user", "content": f"Q: {user_prompt}\nContext: {context}"}
+        ],
+        "max_tokens": 500
+    }
 
-async def follow_up_notes(topic: str, previous_notes: dict, user_prompt: str):
-    if not is_ai_enabled():
-        raise RuntimeError("Gemini AI is not configured.")
+    data = await run_in_threadpool(_call_openrouter_api_sync, payload, timeout=60)
 
-    prompt = NOTES_FOLLOWUP_PROMPT.format(
-        topic=topic,
-        previous_notes=previous_notes,
-        user_prompt=user_prompt
-    )
+    if not data:
+         return NotesResponse(explanation="AI busy.", variable_breakdown={}, formulas=[], example="", mistakes=[], practice_questions=[], summary=[], resources=[])
 
-    response = llm.invoke([HumanMessage(content=prompt)])
-    raw_text = response.content
+    try:
+        raw_text = data['choices'][0]['message']['content']
+        parsed = clean_json_output(raw_text)
+        
+        if parsed:
+            if isinstance(parsed.get('variable_breakdown'), list):
+                 parsed['variable_breakdown'] = {}
+            if isinstance(parsed.get('summary'), str):
+                 parsed['summary'] = [parsed['summary']]
+            return NotesResponse(**parsed)
+    except:
+        pass
+        
+    return NotesResponse(explanation="AI Error", variable_breakdown={}, formulas=[], example="", mistakes=[], practice_questions=[], summary=[], resources=[])
 
-    data = clean_json_output(raw_text)
-    return NotesResponse(**data)

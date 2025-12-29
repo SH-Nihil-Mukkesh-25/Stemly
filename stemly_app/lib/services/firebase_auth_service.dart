@@ -20,7 +20,7 @@ const String _tokenStorageKey = "stemly_id_token";
 const String _profileStorageKey = "stemly_user_profile";
 const String _apiBaseUrl = String.fromEnvironment(
   'STEMLY_API_BASE_URL',
-  defaultValue: 'http://localhost:8000',
+  defaultValue: 'http://10.12.180.151:8080',
 );
 
 class FirebaseAuthService extends ChangeNotifier {
@@ -153,7 +153,7 @@ class FirebaseAuthService extends ChangeNotifier {
   }
 
   // ---------------------------------------------------------------------------
-  // 🔵 BACKEND WARM-UP (OPTIONAL)
+  // 🔵 BACKEND WARM-UP
   // ---------------------------------------------------------------------------
   Future<void> warmUpBackend() async {
     final token = await getIdToken();
@@ -193,17 +193,26 @@ class FirebaseAuthService extends ChangeNotifier {
   }
 
   // ---------------------------------------------------------------------------
-  // 🔵 TOKEN MANAGEMENT
+  // 🔵 TOKEN MANAGEMENT  (UPDATED HERE)
   // ---------------------------------------------------------------------------
   Future<String?> getIdToken({bool forceRefresh = false}) async {
     if (_user != null) {
       final token = await _user!.getIdToken(forceRefresh);
+
+      // 🔥 Print token for Swagger testing
+      print("🔥 FIREBASE TOKEN: $token");
+
       _cachedIdToken = token;
       await _secureStorage.write(key: _tokenStorageKey, value: token);
       return token;
     }
 
     _cachedIdToken ??= await _secureStorage.read(key: _tokenStorageKey);
+
+    if (_cachedIdToken != null) {
+      print("🔥 FIREBASE TOKEN (cached): $_cachedIdToken");
+    }
+
     return _cachedIdToken;
   }
 
@@ -221,6 +230,10 @@ class FirebaseAuthService extends ChangeNotifier {
     if (user == null) return;
 
     final token = await user.getIdToken();
+
+    // 🔥 Print token for debugging
+    print("🔥 FIREBASE TOKEN (cacheAuth): $token");
+
     _cachedIdToken = token;
 
     await _secureStorage.write(key: _tokenStorageKey, value: token);

@@ -35,8 +35,7 @@ async def require_firebase_user(
             "name": "Test User",
             "picture": None
         }
-        # We still try to record login, but user_model handles missing DB now
-        await record_user_login(mock_user)
+        # DEV: Skip DB call to prevent blocking
         request.state.user = mock_user
         request.state.id_token = id_token
         return mock_user
@@ -50,7 +49,9 @@ async def require_firebase_user(
             detail="Invalid or expired Firebase ID token.",
         ) from exc
 
-    await record_user_login(firebase_user)
+    # Skip DB call to prevent blocking on MongoDB SSL issues
+    # The app will still work, just won't persist user login
+    # await record_user_login(firebase_user)
 
     request.state.user = firebase_user
     request.state.id_token = id_token

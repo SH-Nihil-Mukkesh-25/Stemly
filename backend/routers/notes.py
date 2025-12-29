@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Header
+from openai import AuthenticationError
 
 from auth.auth_middleware import require_firebase_user
 from database.notes_model import save_notes_entry
@@ -17,8 +18,20 @@ router = APIRouter(
 # 1. Generate Full Notes
 # -----------------------------------------
 
+from config import FALLBACK_GROQ_API_KEY
+
 @router.post("/generate")
-async def generate_notes_route(req: NotesGenerateRequest, request: Request):
+async def generate_notes_route(
+    req: NotesGenerateRequest, 
+    request: Request,
+    x_groq_api_key: str = Header(None, alias="x-groq-api-key")
+):
+    # Use header key or fallback from env
+    api_key_to_use = x_groq_api_key or FALLBACK_GROQ_API_KEY
+    
+    # API Key check is removed for Local AI
+    # if not api_key_to_use:
+    #     raise HTTPException(status_code=400, detail="Missing X-Groq-Api-Key and no fallback key found.")
 
     local_path = None
     relative_path = None
@@ -27,25 +40,31 @@ async def generate_notes_route(req: NotesGenerateRequest, request: Request):
             local_path = resolve_scan_path(req.image_path)
             relative_path = scan_path_to_relative(local_path)
         except ValueError as exc:
-            raise HTTPException(
-                status_code=400,
-                detail=str(exc),
-            ) from exc
+            pass # Be lenient if image path issues occur
+            # raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     user_id = request.state.user["uid"]
 
     try:
         image_arg = relative_path or req.image_path
-        notes = await generate_notes(req.topic, req.variables, image_arg)
-        await save_notes_entry(
-            user_id=user_id,
-            topic=req.topic,
-            notes_payload=notes.dict(),
-            image_path=relative_path or req.image_path,
-        )
+        # Pass api_key (dummy) and ocr_text
+        notes = await generate_notes(req.topic, req.variables, image_arg, ocr_text=req.ocr_text, api_key=api_key_to_use)
+        # Non-blocking DB save (fail-safe)
+        try:
+            await save_notes_entry(
+                user_id=user_id,
+                topic=req.topic,
+                notes_payload=notes.dict(),
+                image_path=relative_path or req.image_path,
+            )
+        except Exception as db_err:
+             print(f"⚠ Non-critical DB Error (Notes Save Failed): {db_err}")
+
         # Wrap response to match Flutter's expected format
         return {"notes": notes.dict()}
 
+    except AuthenticationError:
+        raise HTTPException(status_code=401, detail="Invalid Groq API Key")
     except Exception as e:
         print("❌ Error in /notes/generate:", e)
         raise HTTPException(status_code=500, detail="Failed to generate notes.")
@@ -57,7 +76,16 @@ async def generate_notes_route(req: NotesGenerateRequest, request: Request):
 # -----------------------------------------
 
 @router.post("/ask")
-async def follow_up_notes_route(req: NotesFollowUpRequest, request: Request):
+async def follow_up_notes_route(
+    req: NotesFollowUpRequest, 
+    request: Request,
+    x_groq_api_key: str = Header(None, alias="x-groq-api-key")
+):
+    # Use header key or fallback from env
+    api_key_to_use = x_groq_api_key or FALLBACK_GROQ_API_KEY
+    
+    # if not api_key_to_use:
+    #     raise HTTPException(status_code=400, detail="Missing X-Groq-Api-Key.")
 
     try:
         image_reference = None
@@ -68,14 +96,20 @@ async def follow_up_notes_route(req: NotesFollowUpRequest, request: Request):
                     image_reference = scan_path_to_relative(resolve_scan_path(raw_path))
                 except ValueError:
                     image_reference = None
+        
+        # Pass api_key to follow-up service
+        notes = await follow_up_notes(req.topic, req.previous_notes, req.user_prompt, api_key=api_key_to_use)
+        # Non-blocking DB save (fail-safe)
+        try:
+            await save_notes_entry(
+                user_id=request.state.user["uid"],
+                topic=req.topic,
+                notes_payload=notes.dict(),
+                image_path=image_reference,
+            )
+        except Exception as db_err:
+             print(f"⚠ Non-critical DB Error (Follow-up Save Failed): {db_err}")
 
-        notes = await follow_up_notes(req.topic, req.previous_notes, req.user_prompt)
-        await save_notes_entry(
-            user_id=request.state.user["uid"],
-            topic=req.topic,
-            notes_payload=notes.dict(),
-            image_path=image_reference,
-        )
         # Wrap response to match Flutter's expected format
         return {"notes": notes.dict()}
 

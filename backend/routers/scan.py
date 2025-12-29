@@ -1,11 +1,13 @@
 # backend/routers/scan.py
 
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, Header, Form
+from openai import AuthenticationError
 
 from auth.auth_middleware import require_firebase_user
 from database.history_model import get_user_history, save_scan_history
 from services.ai_detector import detect_topic
-from services.storage import save_scan
+from services.scan_service import save_scan
+from config import FALLBACK_GROQ_API_KEY
 
 router = APIRouter(
     dependencies=[Depends(require_firebase_user)],
@@ -14,25 +16,37 @@ router = APIRouter(
 
 
 @router.post("/upload")
-async def upload_scan(request: Request, file: UploadFile = File(...)):
+async def upload_scan(
+    request: Request,
+    file: UploadFile = File(...),
+    ocr_text: str = Form(""), # Received from Flutter ML Kit
+    x_groq_api_key: str = Header(None, alias="x-groq-api-key"),
+):
     user_id = request.state.user["uid"]
+    
+    # NOTE: x_groq_api_key is ignored in Local AI architecture
+    
+    print(f"DEBUG: upload_scan starting for user {user_id}")
+    print(f"DEBUG: OCR Text received: {ocr_text[:50]}...")
 
+    # 1. Save File (still useful for history/debugging)
     try:
         saved_path = await save_scan(file)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         print(f"❌ Error saving scan: {exc}")
         raise HTTPException(status_code=500, detail="Failed to save image") from exc
 
+    # 2. Detect Topic (using LOCAL OLLAMA)
     try:
-        topic, variables = await detect_topic(saved_path)
+        # We pass ocr_text AND the saved image path for Vision fallback
+        topic, variables = await detect_topic(ocr_text, image_path=saved_path)
+        print(f"DEBUG: Local AI success: {topic}, {variables}")
     except Exception as exc:
         print(f"❌ Error detecting topic: {exc}")
-        # Return fallback values instead of crashing
         topic = "Unknown"
         variables = []
 
+    # 3. Save History (Skip if DB is disabled, which is handled inside save_scan_history)
     try:
         record_id = await save_scan_history(
             user_id=user_id,

@@ -6,7 +6,9 @@ import 'firebase_options.dart';
 
 // Services
 import 'services/firebase_auth_service.dart';
+import 'services/groq_service.dart';
 import 'theme/theme_provider.dart';
+import 'storage/history_store.dart';
 
 // Screens
 import 'screens/account_screen.dart';
@@ -33,11 +35,15 @@ Future<void> main() async {
   final authService = FirebaseAuthService();
   await authService.initialize();
 
+  // Initialize History persistence
+  await HistoryStore.init();
+
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider<FirebaseAuthService>.value(value: authService),
+        ChangeNotifierProvider(create: (_) => GroqService()..loadApiKey()),
       ],
       child: const MyApp(),
     ),
