@@ -51,7 +51,11 @@ def verify_firebase_token(id_token: str) -> Dict[str, Optional[str]]:
         raise ValueError("Missing Firebase ID token")
 
     app = _initialize_app()
-    decoded = firebase_auth.verify_id_token(id_token, app=app)
+    try:
+        decoded = firebase_auth.verify_id_token(id_token, app=app)
+    except Exception as e:
+        print(f"🔥 FIREBASE VERIFICATION ERROR: {str(e)}")
+        raise e
 
     return {
         "uid": decoded.get("uid"),
