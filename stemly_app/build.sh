@@ -18,6 +18,6 @@ flutter pub get
 
 echo "Building specific web target..."
 # Note: Using html renderer for better compatibility, or canvaskit for performance
-flutter build web --release --web-renderer html
+flutter build web --release
 
 echo "Build complete."
