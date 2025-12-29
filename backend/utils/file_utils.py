@@ -1,7 +1,7 @@
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-STATIC_SCANS_DIR = (PROJECT_ROOT / "static" / "scans").resolve()
+STATIC_SCANS_DIR = (PROJECT_ROOT / "static" / "uploads").resolve()
 
 
 def resolve_scan_path(image_path: str) -> Path:

@@ -1,132 +1,200 @@
-# services/ai_detector.py
-
 import json
+import requests
 import re
-from pathlib import Path
 from typing import List, Tuple
-
-import google.generativeai as genai
-
-from config import GEMINI_API_KEY
+from config import OLLAMA_BASE_URL, LOCAL_MODEL, OPENROUTER_API_KEY
 
 
-def _ensure_genai_configured() -> bool:
+# Keyword-based fallback for common topics
+TOPIC_KEYWORDS = {
+    "Optics": ["optic", "lens", "mirror", "refraction", "reflection", "light", "ray", "focal", "prism"],
+    "Kinematics": ["velocity", "acceleration", "motion", "displacement", "kinematic", "speed", "trajectory"],
+    "Electricity": ["current", "voltage", "resistance", "ohm", "circuit", "capacitor", "electric"],
+    "Magnetism": ["magnetic", "magnet", "field", "solenoid", "electromagnet"],
+    "Thermodynamics": ["heat", "temperature", "entropy", "thermal", "thermodynamic"],
+    "Waves": ["wave", "frequency", "wavelength", "amplitude", "oscillation", "sound"],
+    "Mechanics": ["force", "newton", "momentum", "torque", "equilibrium", "friction"],
+    "Calculus": ["derivative", "integral", "differentiation", "integration", "limit"],
+    "Algebra": ["equation", "polynomial", "quadratic", "linear", "variable"],
+    "Geometry": ["triangle", "circle", "angle", "polygon", "theorem", "euclidean"],
+    "Chemistry": ["reaction", "element", "compound", "molecule", "bond", "acid", "base"],
+    "Biology": ["cell", "organism", "gene", "dna", "protein", "photosynthesis"],
+    "Projectile Motion": ["projectile", "cannon", "parabola", "range", "trajectory", "2d motion"],
+}
+
+
+def detect_topic_from_keywords(text: str) -> str:
+    """Fallback: detect topic using keyword matching."""
+    text_lower = text.lower()
+    
+    for topic, keywords in TOPIC_KEYWORDS.items():
+        for keyword in keywords:
+            if keyword in text_lower:
+                print(f"📌 Keyword match: '{keyword}' -> {topic}")
+                return topic
+    
+    return "Unknown"
+
+
+def extract_json_from_text(text: str) -> dict:
+    """Extract JSON from LLM output with multiple strategies."""
+    if not text:
+        return None
+        
+    text = text.strip()
+    
+    # Remove markdown
+    text = re.sub(r"```json\s*", "", text)
+    text = re.sub(r"```\s*", "", text)
+    text = text.strip()
+    
+    # Try direct parse
+    try:
+        return json.loads(text)
+    except:
+        pass
+    
+    # Find JSON object
+    match = re.search(r'\{[\s\S]*?\}', text)
+    if match:
+        try:
+            return json.loads(match.group())
+        except:
+            pass
+    
+    return None
+
+
+import base64
+from config import OLLAMA_BASE_URL, LOCAL_MODEL, OPENROUTER_API_KEY, VISION_MODEL
+
+
+# ... existing keywords/parsing ...
+
+async def detect_topic(ocr_text: str, image_path: str = None) -> Tuple[str, List[str]]:
     """
-    Configure the Gemini client once using the shared API key.
-    Returns True if configuration is available, False otherwise.
-    """
-    if not GEMINI_API_KEY:
-        print(
-            "⚠ GEMINI_API_KEY is not set. "
-            "Topic detection will be disabled and return fallback values."
-        )
-        return False
-
-    # google-generativeai is configured globally; calling this multiple times is cheap.
-    genai.configure(api_key=GEMINI_API_KEY)
-    return True
-
-
-async def detect_topic(image_path: str) -> Tuple[str, List[str]]:
-    """
-    Detect STEM topic + variables from an image using Gemini 2.0 Flash.
-    Ensures clean JSON output and supports various formats returned by Gemini.
+    Detect STEM topic.
+    Strategy:
+    1. If OCR text is available, try Text-Only model (Fast/Cheap).
+    2. If Text model fails (returns Unknown) OR OCR is poor, usage Vision model (Slow/Smart).
     """
 
-    # Ensure the Gemini client is ready
-    if not _ensure_genai_configured():
-        return "Unknown", []
+    # 1. Try Keyword fallback first (Fastest)
+    keyword_topic = detect_topic_from_keywords(ocr_text) if ocr_text else "Unknown"
+    
+    # 2. Determine if we skip straight to Vision (Sparse text)
+    skip_text_model = not ocr_text or len(ocr_text.strip()) < 10
+    
+    topic = "Unknown"
+    variables = []
 
-    # --- Read image bytes ---
-    path = Path(image_path)
-    if not path.is_file():
-        print(f"❌ ai_detector: image file not found at {image_path}")
-        return "Unknown", []
+    # --- ATTEMPT 1: TEXT MODEL ---
+    if not skip_text_model:
+        print(f"🔍 Text detected ({len(ocr_text)} chars). Trying Text Model...")
+        try:
+            topic, variables = await _query_text_model(ocr_text)
+        except Exception as e:
+            print(f"⚠ Text model error: {e}")
+            topic = "Unknown"
 
-    img_bytes = path.read_bytes()
+    # --- ATTEMPT 2: VISION MODEL (Fallback) ---
+    # Trigger if:
+    # a) We skipped text model (text too short)
+    # b) Text model returned "Unknown"
+    # c) Text model returned "General Science" (too vague)
+    
+    if (topic == "Unknown" or topic == "General Science") and image_path and VISION_MODEL:
+        reason = "Short Text" if skip_text_model else "Text Model failed"
+        print(f"👁 {reason}. Switching to VISION model: {VISION_MODEL}")
+        
+        try:
+            topic, variables = await _query_vision_model(image_path)
+        except Exception as e:
+            print(f"❌ Vision model error: {e}")
+            
+    # Final Fallback
+    if topic == "Unknown":
+        topic = keyword_topic
 
-    # --- Auto-detect MIME type ---
-    ext = path.suffix.lower()
-    if ext.endswith(".jpg") or ext.endswith(".jpeg"):
-        mime_type = "image/jpeg"
-    else:
-        mime_type = "image/png"
+    return topic, variables
 
-    # --- Strict JSON Prompt ---
-    system_prompt = """
-    You are a STEM topic detector.
 
-    Your job:
-    - Identify the main STEM topic from the scanned image.
-    - Identify important variables (e.g., v0, angle, g, refractive index, resistance).
+async def _query_text_model(text: str) -> Tuple[str, List[str]]:
+    """Helper to query text-only model."""
+    system_prompt = """You are a STEM topic classifier. Return ONLY valid JSON.
+Output format: {"topic": "TopicName", "variables": ["x", "y"], "confidence": 0.9}
+Common topics: Optics, Kinematics, Mechanics, Electricity, Magnetism, Thermodynamics, Waves, Calculus, Algebra, Geometry, Chemistry, Biology, Atom, Projectile Motion.
+IMPORTANT: Be specific. If the text describes 2D motion, angles, or parabolas, classify as 'Projectile Motion' instead of generic 'Kinematics'. If it involves dropping objects, use 'Free Fall'."""
 
-    STRICT RULES:
-    - Respond ONLY with a valid JSON object.
-    - NO backticks.
-    - NO markdown.
-    - NO explanations.
-    - NO code blocks.
-
-    Output format:
-    {
-      "topic": "Projectile Motion",
-      "variables": ["v0", "angle", "g"]
+    payload = {
+        "model": LOCAL_MODEL,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"Classify this text:\n{text[:800]}"}
+        ],
+        "max_tokens": 150,
+        "temperature": 0.1
     }
-    """
+    
+    return _execute_request(payload)
 
-    # --- Gemini Model ---
-    model = genai.GenerativeModel("gemini-2.0-flash")
 
-    try:
-        response = model.generate_content(
-            [
-                system_prompt,
-                {
-                    "mime_type": mime_type,
-                    "data": img_bytes
-                }
-            ]
-        )
-        raw_text = response.text.strip()
-    except Exception as e:
-        print(f"❌ Gemini API Error in ai_detector: {e}")
+async def _query_vision_model(image_path: str) -> Tuple[str, List[str]]:
+    """Helper to query vision model."""
+    with open(image_path, "rb") as img_file:
+        b64_image = base64.b64encode(img_file.read()).decode('utf-8')
+
+    # Determine MIME type
+    mime_type = "image/png" if image_path.lower().endswith(".png") else "image/jpeg"
+
+    system_prompt = """You are a Visual STEM Expert. Analyze the image provided.
+Identify the main scientific Topic. Be specific:
+- Use 'Projectile Motion' for parabolic paths/cannons (NOT Kinematics).
+- Use 'Free Fall' for dropping objects.
+- Use 'Kinematics' only for linear/1D motion (cars, blocks).
+- Other topics: Optics, Circuits, Chemistry, Calculus, Atomic Structure.
+Identify any variables or values visible (e.g. v, t, x, theta, protons).
+Return ONLY valid JSON: {"topic": "TopicName", "variables": ["x", "y"]}"""
+
+    payload = {
+        "model": VISION_MODEL,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": [
+                {"type": "text", "text": "Analyze this scientific image. What is the topic and variables?"},
+                {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{b64_image}"}}
+            ]}
+        ],
+        "max_tokens": 300,
+        "temperature": 0.1
+    }
+    
+    return _execute_request(payload)
+
+
+def _execute_request(payload: dict) -> Tuple[str, List[str]]:
+    """Execute Request to OpenRouter."""
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "http://localhost",
+        "X-Title": "Stemly"
+    }
+
+    response = requests.post(f"{OLLAMA_BASE_URL}/chat/completions", json=payload, headers=headers, timeout=50)
+    response.raise_for_status()
+    data = response.json()
+    
+    if 'choices' not in data or len(data['choices']) == 0:
         return "Unknown", []
-
-    # --- Clean raw output ---
-    raw_text = re.sub(r"```json", "", raw_text)
-    raw_text = re.sub(r"```", "", raw_text).strip()
-
-    # --- Try parsing JSON ---
-    try:
-        parsed = json.loads(raw_text)
-
-        # --- Handle topic variations ---
-        topic = (
-            parsed.get("topic") or
-            parsed.get("stem_topic") or
-            parsed.get("subject") or
-            "Unknown"
-        )
-
-        # --- Handle variable formats ---
-        variables_raw = parsed.get("variables", [])
-        variables = []
-
-        for item in variables_raw:
-            if isinstance(item, str):
-                variables.append(item)
-            elif isinstance(item, dict):
-                # Convert {"u": "velocity"} → "u"
-                key = list(item.keys())[0]
-                variables.append(key)
-            else:
-                variables.append(str(item))
-
-        return topic, variables
-
-    except Exception as e:
-        print("⚠ JSON Parse Error in ai_detector:", e)
-        print("Raw Gemini Output:", raw_text)
-
-        # Fallback to raw topic only
-        return raw_text, []
+        
+    raw = data['choices'][0]['message']['content']
+    print(f"📝 AI Response: {raw[:100]}...")
+    
+    parsed = extract_json_from_text(raw)
+    if parsed:
+        t = parsed.get("topic", "Unknown")
+        v = [str(x) for x in parsed.get("variables", [])]
+        return t, v
+        
+    return "Unknown", []

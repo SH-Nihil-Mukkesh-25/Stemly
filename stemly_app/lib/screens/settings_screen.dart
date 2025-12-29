@@ -1,12 +1,81 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../widgets/bottom_nav_bar.dart';
 import '../theme/theme_provider.dart';
+import 'package:stemly_app/services/groq_service.dart'; // UPDATED
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  final TextEditingController _apiKeyController = TextEditingController();
+  bool _isObscured = true;
+
+  @override
+  void dispose() {
+    _apiKeyController.dispose();
+    super.dispose();
+  }
+
+  // GROK: SAVE API KEY
+  Future<void> _saveApiKey(BuildContext context) async {
+    final groqService = Provider.of<GroqService>(context, listen: false); // UPDATED
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final key = _apiKeyController.text.trim();
+
+    if (key.isEmpty) {
+       scaffoldMessenger.showSnackBar(
+        const SnackBar(content: Text("Please enter a valid API Key.")),
+      );
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+
+    final error = await groqService.setApiKey(key); // UPDATED
+    
+    if (mounted) {
+      if (error == null) {
+        _apiKeyController.clear();
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text("${groqService.provider} API Key saved successfully."), // UPDATED
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              error.contains("401") 
+                ? "Invalid API Key (Unauthorized)" 
+                : "Error: $error"
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    }
+  }
+
+  // GROK: RESET
+  Future<void> _removeApiKey(BuildContext context) async {
+    final groqService = Provider.of<GroqService>(context, listen: false); // UPDATED
+    await groqService.removeApiKey();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Removed xAI API Key.")), // UPDATED
+      );
+    }
+  }
 
   // FEEDBACK
   Future<void> _sendFeedback() async {
@@ -237,6 +306,7 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeProvider = context.watch<ThemeProvider>();
+    final groqService = context.watch<GroqService>(); // UPDATED
     final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -246,7 +316,126 @@ class SettingsScreen extends StatelessWidget {
       ),
 
       body: ListView(
+        padding: const EdgeInsets.only(bottom: 20),
         children: [
+          // GROQ API SECTION
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "AI Configuration (${groqService.provider})", // UPDATED
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: cs.primary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Status Indicator
+                        Row(
+                          children: [
+                            Icon(
+                              groqService.isConfigured ? Icons.check_circle : Icons.error_outline,
+                              color: groqService.isConfigured ? Colors.green : Colors.orange,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              groqService.isConfigured ? "${groqService.provider} Active" : "Missing API Key", // UPDATED
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: groqService.isConfigured ? Colors.green : Colors.orange,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        
+                        if (groqService.apiKey != null) ...[
+                          Text(
+                            "Key: •••••••••${groqService.apiKey!.length > 4 ? groqService.apiKey!.substring(groqService.apiKey!.length - 4) : ''}",
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+                        
+                        const Text(
+                          "Enter API Key (xAI, OpenAI, or Groq) to enable AI.", // UPDATED
+                          style: TextStyle(fontSize: 13, color: Colors.grey),
+                        ),
+
+                        const SizedBox(height: 16),
+                        
+                        TextField(
+                          controller: _apiKeyController,
+                          obscureText: _isObscured,
+                          decoration: InputDecoration(
+                            labelText: "API Key", // UPDATED
+                            hintText: "xai-...",
+                            border: const OutlineInputBorder(),
+                            suffixIcon: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.content_paste),
+                                  onPressed: () async {
+                                    final data = await Clipboard.getData(Clipboard.kTextPlain);
+                                    if (data?.text != null) {
+                                      setState(() {
+                                        _apiKeyController.text = data!.text!;
+                                      });
+                                    }
+                                  },
+                                ),
+                                IconButton(
+                                  icon: Icon(_isObscured ? Icons.visibility : Icons.visibility_off),
+                                  onPressed: () => setState(() => _isObscured = !_isObscured),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: groqService.isValidating 
+                                ? const Center(child: CircularProgressIndicator())
+                                : ElevatedButton(
+                                    onPressed: () => _saveApiKey(context),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: cs.primary,
+                                      foregroundColor: cs.onPrimary,
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                    ),
+                                    child: const Text("Save & Test"),
+                                  ),
+                            ),
+                            const SizedBox(width: 12),
+                            OutlinedButton(
+                              onPressed: () => _removeApiKey(context),
+                              child: const Text("Reset"),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+
           // DARK MODE
           SwitchListTile(
             title: const Text("Dark Mode"),

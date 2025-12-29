@@ -1,9 +1,13 @@
+# OpenAI-compatible API (Grok / xAI)
+openai
+langchain-openai
+
 # FastAPI framework & ASGI server
 fastapi
 uvicorn[standard]
 
-# Google Gemini API (Vision + Text)
-google-generativeai
+# Google Gemini API (Vision + Text) - Optional: can be removed if fully transitioned
+
 
 # Environment variables loader
 python-dotenv
@@ -14,9 +18,9 @@ python-multipart
 # Data validation / models (used by FastAPI)
 pydantic
 
-# LangChain core + Google Gemini integration (used in ai_notes)
+# LangChain core + Google Gemini integration
 langchain
-langchain-google-genai
+
 
 # MongoDB async driver
 motor

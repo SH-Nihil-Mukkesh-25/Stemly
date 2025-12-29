@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends, Request, Header
+from openai import AuthenticationError
 from pydantic import BaseModel
 from typing import Dict, Any, Optional
 from services.visualiser_loader import get_template_by_topic, fill_template_defaults
@@ -48,31 +49,50 @@ async def generate_visualiser(req: VisualiserGenerateRequest, request: Request):
     }
 
 
+from config import FALLBACK_GROQ_API_KEY
+
 @router.post("/update")
-async def update_visualiser(req: VisualiserUpdateRequest, request: Request):
+async def update_visualiser(
+    req: VisualiserUpdateRequest, 
+    request: Request,
+    x_groq_api_key: str = Header(None, alias="x-groq-api-key")
+):
     # Default values in case AI is not invoked
     updated: Dict[str, Any] = {}
     ai_response: str = "No AI changes were applied."
 
     if req.user_prompt and req.user_prompt.strip():
-        try:
-            from services.ai_visualiser import adjust_parameters_with_ai
+        # Use header key or fallback from env
+        api_key_to_use = x_groq_api_key or FALLBACK_GROQ_API_KEY
+        
+        if not api_key_to_use:
+             # Just warn or fail? Fail is better if user expects AI.
+             print("⚠ Missing API Key for visual update")
+             ai_response = "Please configure Groq API Key in Settings to use AI features."
+        else:
+            try:
+                from services.ai_visualiser import adjust_parameters_with_ai
 
-            ai_result = await adjust_parameters_with_ai(
-                req.template_id,
-                req.parameters,
-                req.user_prompt,
-            )
-            updated = ai_result.get("updated_parameters", {})
-            ai_response = ai_result.get("ai_response", "Updated parameters.")
-            print(f"🤖 AI Updates: {updated}")
-        except Exception as e:
-            print(f"⚠ AI Update Error: {e}")
-            updated = {}
-            ai_response = (
-                "Sorry, I encountered an error processing your request. "
-                "The previous parameters are kept unchanged."
-            )
+                ai_result = await adjust_parameters_with_ai(
+                    req.template_id,
+                    req.parameters,
+                    req.user_prompt,
+                    api_key=api_key_to_use
+                )
+                updated = ai_result.get("updated_parameters", {})
+                ai_response = ai_result.get("ai_response", "Updated parameters.")
+                print(f"🤖 AI Updates: {updated}")
+            except AuthenticationError:
+                print("❌ Invalid Groq API Key")
+                updated = {}
+                ai_response = "Error: Invalid Groq API Key. Please check your settings."
+            except Exception as e:
+                print(f"⚠ AI Update Error: {e}")
+                updated = {}
+                ai_response = (
+                    "Sorry, I encountered an error processing your request. "
+                    "The previous parameters are kept unchanged."
+                )
 
     merged = dict(req.parameters)
     merged.update(updated)

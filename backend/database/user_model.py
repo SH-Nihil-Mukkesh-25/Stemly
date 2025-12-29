@@ -30,19 +30,24 @@ async def record_user_login(user_info: Dict[str, Optional[str]]):
         "last_login": now,
     }
 
-    await users_collection.update_one(
-        {"_id": uid},
-        {
-            "$set": {
-                "name": doc["name"],
-                "email": doc["email"],
-                "profile_pic": doc["profile_pic"],
-                "last_login": doc["last_login"],
+    try:
+        await users_collection.update_one(
+            {"_id": uid},
+            {
+                "$set": {
+                    "name": doc["name"],
+                    "email": doc["email"],
+                    "profile_pic": doc["profile_pic"],
+                    "last_login": doc["last_login"],
+                },
+                "$setOnInsert": {"created_at": doc["created_at"]},
             },
-            "$setOnInsert": {"created_at": doc["created_at"]},
-        },
-        upsert=True,
-    )
+            upsert=True,
+        )
+    except Exception as e:
+        # DB Error should not block the user from using the app
+        print(f"⚠ WARNING: Failed to record user login: {e}")
+        return
 
 
 async def get_user(uid: str):

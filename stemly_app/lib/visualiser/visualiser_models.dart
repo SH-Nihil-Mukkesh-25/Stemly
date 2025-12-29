@@ -19,11 +19,17 @@ class TemplateParameter {
   });
 
   factory TemplateParameter.fromJson(String name, Map<String, dynamic> j) {
+    double safeDouble(dynamic v) {
+      if (v is num) return v.toDouble();
+      if (v is String) return double.tryParse(v) ?? 0.0;
+      return 0.0;
+    }
+
     return TemplateParameter(
       name: name,
-      value: (j['value'] ?? 0).toDouble(),
-      min: (j['min'] ?? 0).toDouble(),
-      max: (j['max'] ?? 100).toDouble(),
+      value: safeDouble(j['value']),
+      min: safeDouble(j['min']),
+      max: safeDouble(j['max'] ?? 100),
       unit: j['unit'] ?? '',
       label: j['label'] ?? name,
     );
@@ -46,6 +52,7 @@ class VisualTemplate {
   String animationType;
   String description;
   Map<String, TemplateParameter> parameters;
+  Map<String, dynamic> metadata;
 
   VisualTemplate({
     required this.templateId,
@@ -53,6 +60,7 @@ class VisualTemplate {
     required this.animationType,
     required this.description,
     required this.parameters,
+    this.metadata = const {},
   });
 
   factory VisualTemplate.fromJson(Map<String, dynamic> json) {
@@ -68,6 +76,7 @@ class VisualTemplate {
       animationType: json['animation_type'] ?? json['animationType'] ?? '',
       description: json['description'] ?? '',
       parameters: params,
+      metadata: json['metadata'] ?? {},
     );
   }
 
@@ -86,6 +95,7 @@ class VisualTemplate {
       'animation_type': animationType,
       'description': description,
       'parameters': p,
+      'metadata': metadata,
     };
   }
 }

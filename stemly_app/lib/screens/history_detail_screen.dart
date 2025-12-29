@@ -6,11 +6,12 @@ import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 
 import '../models/scan_history.dart';
+import '../storage/history_store.dart';
 import '../services/firebase_auth_service.dart';
 import '../widgets/bottom_nav_bar.dart';
-import '../visualiser/projectile_motion.dart';
-import '../visualiser/free_fall_component.dart';
-import '../visualiser/shm_component.dart';
+import '../quiz/quiz_play_screen.dart';
+import '../quiz/quiz_result_screen.dart';
+import '../visualiser/visualiser_factory.dart';
 import '../visualiser/visualiser_models.dart';
 
 class HistoryDetailScreen extends StatefulWidget {
@@ -29,7 +30,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
   Widget? visualiserWidget;
   bool loading = true;
 
-  final serverIp = "http://10.0.2.2:8000";
+  final serverIp = "http://10.12.180.151:8080";
 
   @override
   void initState() {
@@ -70,27 +71,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
         final template = VisualTemplate.fromJson(templateJson);
         visualiserTemplate = template;
 
-        final id = template.templateId.toLowerCase();
-        final p = template.parameters;
-
-        if (id.contains("projectile")) {
-          visualiserWidget = ProjectileMotionWidget(
-            U: p["U"]!.value,
-            theta: p["theta"]!.value,
-            g: p["g"]!.value,
-          );
-        } else if (id.contains("fall") || id.contains("free")) {
-          visualiserWidget = FreeFallWidget(
-            h: p["h"]!.value,
-            g: p["g"]!.value,
-          );
-        } else if (id.contains("shm")) {
-          visualiserWidget = SHMWidget(
-            A: p["A"]!.value,
-            m: p["m"]!.value,
-            k: p["k"]!.value,
-          );
-        }
+        visualiserWidget = VisualiserFactory.create(template);
       }
     } catch (e) {
       print("History visualiser error: $e");
@@ -112,7 +93,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     final cardColor = theme.cardColor;
 
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         backgroundColor: background,
         bottomNavigationBar: BottomNavBar(currentIndex: 1),
@@ -170,6 +151,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                   ),
                   tabs: const [
                     Tab(text: "AI Visualiser"),
+                    Tab(text: "AI Quiz"),
                     Tab(text: "AI Notes"),
                   ],
                 ),
@@ -182,6 +164,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
         body: TabBarView(
           children: [
             _visualiserTab(h, deepBlue),
+            _quizTab(deepBlue),
             _notesTab(h, cardColor, deepBlue),
           ],
         ),
@@ -392,5 +375,451 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
     return raw
         .replaceAll("_", " ")
         .replaceFirst(raw[0], raw[0].toUpperCase());
+  }
+
+  // ==========================================================
+  // QUIZ TAB
+  // ==========================================================
+  Widget _quizTab(Color deepBlue) {
+    double count = 5;
+
+    return StatefulBuilder(
+      builder: (context, setStateSB) {
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              // Hero Card
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: deepBlue,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: deepBlue.withOpacity(0.3),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    const Icon(Icons.quiz_rounded, size: 48, color: Colors.white),
+                    const SizedBox(height: 12),
+                    Text(
+                      "AI Quiz Generator",
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "Test your knowledge on ${widget.history.topic}",
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.9),
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 28),
+
+              // Settings Card
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 15,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: deepBlue.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(Icons.tune, color: deepBlue, size: 24),
+                        ),
+                        const SizedBox(width: 14),
+                        const Text(
+                          "Quiz Settings",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    // Question count
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          "Number of Questions",
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: deepBlue,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            "${count.toInt()}",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    SliderTheme(
+                      data: SliderTheme.of(context).copyWith(
+                        activeTrackColor: deepBlue,
+                        inactiveTrackColor: deepBlue.withOpacity(0.2),
+                        thumbColor: deepBlue,
+                        overlayColor: deepBlue.withOpacity(0.2),
+                        trackHeight: 6,
+                        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 12),
+                      ),
+                      child: Slider(
+                        min: 3,
+                        max: 15,
+                        divisions: 12,
+                        value: count,
+                        onChanged: (v) => setStateSB(() => count = v),
+                      ),
+                    ),
+                    
+                    // Difficulty indicators
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _difficultyChip("Easy", Colors.green, true),
+                        _difficultyChip("Medium", Colors.orange, true),
+                        _difficultyChip("Hard", Colors.red, true),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 28),
+
+              // Generate Button
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton.icon(
+                  onPressed: () => _startQuiz(count.toInt()),
+                  icon: const Icon(Icons.auto_awesome, size: 22),
+                  label: const Text(
+                    "Generate AI Quiz",
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: deepBlue,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 4,
+                    shadowColor: deepBlue.withOpacity(0.4),
+                  ),
+                ),
+              ),
+              
+               const SizedBox(height: 16),
+              // Info text
+
+              
+              // ---------------- HISTORY LIST ----------------
+              if (widget.history.quizResults.isNotEmpty) ...[
+                const SizedBox(height: 32),
+                Row(
+                  children: [
+                    Icon(Icons.history, size: 20, color: Colors.grey.shade700),
+                    const SizedBox(width: 8),
+                    Text(
+                      "Previous Quizzes",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade800,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                ...widget.history.quizResults.map((r) {
+                   final score = r["score"];
+                   final total = r["total"];
+                   final pct = r["percentage"];
+                   final date = DateTime.tryParse(r["timestamp"] ?? "") ?? DateTime.now();
+                   
+                   final Color color = pct >= 80 ? Colors.green : (pct >= 50 ? Colors.orange : Colors.red);
+                   
+                  final Map<String, dynamic> quizData = r["quizData"] != null 
+                      ? Map<String, dynamic>.from(r["quizData"]) 
+                      : {};
+                  final Map<String, dynamic> rawAnswers = r["answers"] != null 
+                      ? Map<String, dynamic>.from(r["answers"]) 
+                      : {};
+
+                   return GestureDetector(
+                     onTap: () {
+                        if (quizData.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Details not available for this quiz.")),
+                          );
+                          return;
+                        }
+
+                        // Parse answers: JSON keys are strings, Map<int,int> needs ints
+                        final Map<int, int> answerMap = {};
+                        rawAnswers.forEach((k, v) {
+                          final key = int.tryParse(k);
+                          if (key != null && v is int) {
+                            answerMap[key] = v;
+                          }
+                        });
+
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => QuizResultScreen(
+                              quizData: quizData,
+                              answers: answerMap,
+                            ),
+                          ),
+                        );
+                     },
+                     child: Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                         color: Theme.of(context).cardColor,
+                         borderRadius: BorderRadius.circular(16),
+                         border: Border.all(color: Colors.grey.shade200),
+                         boxShadow: [
+                           BoxShadow(
+                             color: Colors.black.withOpacity(0.04),
+                             blurRadius: 8,
+                             offset: const Offset(0, 2),
+                           ),
+                         ],
+                      ),
+                      child: Row(
+                        children: [
+                           // Score Circle
+                           Container(
+                              width: 50,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                color: color.withOpacity(0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  "$pct%",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: color,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                           ),
+                           const SizedBox(width: 16),
+                           Expanded(
+                             child: Column(
+                               crossAxisAlignment: CrossAxisAlignment.start,
+                               children: [
+                                 Text("Score: $score / $total", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: deepBlue)),
+                                 const SizedBox(height: 4),
+                                 Text(
+                                   "${date.day}/${date.month}/${date.year} • ${date.hour}:${date.minute.toString().padLeft(2, '0')}",
+                                    style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                                 ),
+                               ],
+                             ),
+                           ),
+                           Icon(Icons.chevron_right, color: Colors.grey.shade400),
+                        ],
+                      ),
+                    ),
+                   );
+                }).toList(),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _difficultyChip(String label, Color color, bool isIncluded) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: isIncluded ? color.withOpacity(0.15) : Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: isIncluded ? color : Colors.grey.shade300),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isIncluded) Icon(Icons.check, size: 14, color: color),
+          if (isIncluded) const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: isIncluded ? color : Colors.grey,
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================================
+  // START QUIZ
+  // ==========================================================
+  Future<void> _startQuiz(int count) async {
+    final auth = context.read<FirebaseAuthService>();
+    final token = await auth.getIdToken();
+
+    if (token == null) {
+      _showQuizError("Authentication required. Please sign in again.");
+      return;
+    }
+
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text("Generating ${widget.history.topic} Quiz...", textAlign: TextAlign.center),
+            const SizedBox(height: 8),
+            const Text("This may take a moment", style: TextStyle(fontSize: 12, color: Colors.grey)),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final response = await http.get(
+        Uri.parse("$serverIp/quiz/generate?topic=${widget.history.topic}&count=$count"),
+        headers: {"Authorization": "Bearer $token"},
+      ).timeout(const Duration(seconds: 120));
+
+      // Close loading dialog
+      if (mounted) Navigator.of(context, rootNavigator: true).pop();
+
+      if (response.statusCode == 429) {
+        _showQuizError("AI is busy. Please wait a moment and try again.");
+        return;
+      }
+
+      if (response.statusCode != 200) {
+        _showQuizError("Failed to generate quiz. Error: ${response.statusCode}");
+        return;
+      }
+
+      final data = jsonDecode(response.body);
+
+      // Check for error in response
+      if (data is Map && data.containsKey("error") && (data["questions"] == null || (data["questions"] as List).isEmpty)) {
+        _showQuizError(data["error"]?.toString() ?? "Quiz generation failed");
+        return;
+      }
+
+      // Navigate to quiz screen
+      if (mounted) {
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => QuizPlayScreen(quizData: data)),
+        );
+
+        // If returned with results, save them
+        if (result != null && result is Map && mounted) {
+           setState(() {
+             // Cast to Map<String, dynamic> manually to match the type
+             widget.history.quizResults.insert(0, Map<String, dynamic>.from(result));
+             // Save to disk
+             HistoryStore.update();
+           });
+           
+           ScaffoldMessenger.of(context).showSnackBar(
+             const SnackBar(content: Text("Quiz result saved to history!")),
+           );
+        }
+      }
+    } catch (e) {
+      // Close loading dialog if still open
+      if (mounted && Navigator.canPop(context)) Navigator.of(context, rootNavigator: true).pop();
+      // Only show error if we haven't navigated away or if it's a real error
+      if (e.toString().contains("Timeout")) {
+         _showQuizError("Connection timed out. Please try again.");
+      } else {
+         debugPrint("Quiz error: $e");
+      }
+    }
+  }
+
+  void _showQuizError(String message) {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: const [
+            Icon(Icons.error_outline, color: Colors.red),
+            SizedBox(width: 10),
+            Text("Quiz Error"),
+          ],
+        ),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("OK"),
+          ),
+        ],
+      ),
+    );
   }
 }
