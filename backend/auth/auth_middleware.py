@@ -44,9 +44,10 @@ async def require_firebase_user(
     try:
         firebase_user = verify_firebase_token(id_token)
     except Exception as exc:  # firebase_admin raises several custom exceptions
+        print(f"DEBUG: Auth middleware failed: {exc}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired Firebase ID token.",
+            detail=f"Invalid or expired Firebase ID token. Error: {exc}",
         ) from exc
 
     # Skip DB call to prevent blocking on MongoDB SSL issues
