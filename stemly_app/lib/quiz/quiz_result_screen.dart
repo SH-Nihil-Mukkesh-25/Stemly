@@ -12,6 +12,8 @@ class QuizResultScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     // Null safety
     final questions = quizData["questions"] as List<dynamic>?;
     
@@ -131,7 +133,7 @@ class QuizResultScreen extends StatelessWidget {
                   return Container(
                     margin: const EdgeInsets.only(bottom: 18),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: isDark ? cs.surfaceContainerHighest : Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: isCorrect ? Colors.green.withOpacity(0.3) : Colors.red.withOpacity(0.3),
@@ -167,9 +169,10 @@ class QuizResultScreen extends StatelessWidget {
                               Expanded(
                                 child: Text(
                                   "Q${i + 1}. $questionText",
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,
+                                    color: cs.onSurface,
                                   ),
                                 ),
                               ),
@@ -189,7 +192,7 @@ class QuizResultScreen extends StatelessWidget {
                                   Text(
                                     "Your Answer: ",
                                     style: TextStyle(
-                                      color: Colors.grey.shade600,
+                                      color: isDark ? cs.onSurfaceVariant : Colors.grey.shade600,
                                       fontSize: 14,
                                     ),
                                   ),
@@ -215,7 +218,7 @@ class QuizResultScreen extends StatelessWidget {
                                   Text(
                                     "Correct Answer: ",
                                     style: TextStyle(
-                                      color: Colors.grey.shade600,
+                                      color: isDark ? cs.onSurfaceVariant : Colors.grey.shade600,
                                       fontSize: 14,
                                     ),
                                   ),
@@ -250,9 +253,9 @@ class QuizResultScreen extends StatelessWidget {
                               const SizedBox(height: 6),
                               Text(
                                 explanation,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 14,
-                                  color: Colors.black87,
+                                  color: cs.onSurface,
                                   height: 1.5,
                                 ),
                               ),

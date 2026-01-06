@@ -20,13 +20,14 @@ async def upload_scan(
     request: Request,
     file: UploadFile = File(...),
     ocr_text: str = Form(""), # Received from Flutter ML Kit
-    x_groq_api_key: str = Header(None, alias="x-groq-api-key"),
+    x_ai_api_key: str = Header(None, alias="X-AI-API-Key"),
 ):
     user_id = request.state.user["uid"]
     
-    # NOTE: x_groq_api_key is ignored in Local AI architecture
-    
     print(f"DEBUG: upload_scan starting for user {user_id}")
+    if x_ai_api_key:
+        print(f"DEBUG: Received AI API Key: {x_ai_api_key[:5]}...")
+    
     print(f"DEBUG: OCR Text received: {ocr_text[:50]}...")
 
     # 1. Save File (still useful for history/debugging)
@@ -39,7 +40,7 @@ async def upload_scan(
     # 2. Detect Topic (using LOCAL OLLAMA)
     try:
         # We pass ocr_text AND the saved image path for Vision fallback
-        topic, variables = await detect_topic(ocr_text, image_path=saved_path)
+        topic, variables = await detect_topic(ocr_text, image_path=saved_path, api_key=x_ai_api_key)
         print(f"DEBUG: Local AI success: {topic}, {variables}")
     except Exception as exc:
         print(f"❌ Error detecting topic: {exc}")

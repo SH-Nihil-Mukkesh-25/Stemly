@@ -38,11 +38,21 @@ if not MONGO_URI:
     client = None
     db = None
 else:
-    # Use certifi for secure SSL connection
-    client = AsyncIOMotorClient(
-        MONGO_URI,
-        tlsCAFile=certifi.where(),
-        server_api=ServerApi("1")
-    )
-    db = client["stemly_db"]
+    try:
+        # Use certifi for secure SSL connection, but allow invalid certs for now to fix handshake error
+        print("⚠ MongoDB: Allowing invalid certificates (Development Mode Fix)")
+        client = AsyncIOMotorClient(
+            MONGO_URI,
+            tlsCAFile=certifi.where(),
+            server_api=ServerApi("1"),
+            connectTimeoutMS=10000,
+            socketTimeoutMS=20000,
+            retryWrites=True,
+            tlsAllowInvalidCertificates=True  # ENABLED to fix TLSV1_ALERT_INTERNAL_ERROR
+        )
+        db = client["stemly_db"]
+    except Exception as e:
+        print(f"❌ Critical Error initializing MongoDB: {e}")
+        client = None
+        db = None
 

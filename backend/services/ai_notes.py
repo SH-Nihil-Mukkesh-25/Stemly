@@ -1,39 +1,161 @@
 import json
 import re
 import requests
-from typing import Optional, List
+import time
+from typing import Optional
 from fastapi.concurrency import run_in_threadpool
-from config import OLLAMA_BASE_URL, LOCAL_MODEL, OPENROUTER_API_KEY
+from config import GEMINI_API_KEY, GEMINI_MODEL
 from models.notes_models import NotesResponse
 
+
 def clean_json_output(text: str):
+    """Extract JSON from LLM output, handling markdown code blocks and various formats."""
+    if not text:
+        return None
+        
     text = text.strip()
-    text = re.sub(r"```json", "", text)
-    text = re.sub(r"```", "", text)
-    text = text.strip()
+    
+    # Strategy 1: Strip markdown code blocks more aggressively
+    # Handle ```json ... ``` format
+    json_block_match = re.search(r'```json\s*([\s\S]*?)\s*```', text)
+    if json_block_match:
+        text = json_block_match.group(1).strip()
+    else:
+        # Also handle ``` ... ``` without json tag
+        code_block_match = re.search(r'```\s*([\s\S]*?)\s*```', text)
+        if code_block_match:
+            text = code_block_match.group(1).strip()
+        else:
+            # Fallback: just strip the markers if they exist
+            text = re.sub(r'^```json\s*', '', text)
+            text = re.sub(r'^```\s*', '', text)
+            text = re.sub(r'\s*```$', '', text)
+            text = text.strip()
+    
+    # Strategy 2: Try direct parse
     try:
         return json.loads(text)
-    except:
-        return None
+    except json.JSONDecodeError:
+        pass
+    
+    # Strategy 3: Find JSON object with greedy regex (outermost braces)
+    # Use a more careful approach to find balanced braces
+    match = re.search(r'\{[\s\S]*\}', text)
+    if match:
+        json_str = match.group()
+        try:
+            return json.loads(json_str)
+        except json.JSONDecodeError:
+            # Try to fix common issues
+            pass
+    
+    # Strategy 4: Find the first { and try parsing from there
+    first_brace = text.find('{')
+    if first_brace != -1:
+        potential_json = text[first_brace:]
+        try:
+            return json.loads(potential_json)
+        except json.JSONDecodeError:
+            pass
+    
+    print(f"❌ clean_json_output: All strategies failed. Text starts with: {text[:100]}")
+    return None
 
-def _call_openrouter_api_sync(payload: dict, timeout: int = 120):
-    """Blocking call to OpenRouter API."""
-    headers = {
-        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-        "Content-Type": "application/json",
-        "HTTP-Referer": "http://localhost",
-        "X-Title": "Stemly"
+
+def _call_gemini_api_sync(prompt: str, system_prompt: str = "", max_tokens: int = 1000, timeout: int = 120, api_key: str = None, json_mode: bool = False):
+    """Blocking call to Google Gemini API with exponential backoff retry."""
+    key = api_key or GEMINI_API_KEY
+    SYSTEM_FALLBACK_KEY = "AIzaSyBek9KwVGRNicmxCNO1Zv4ubgevRUU4LZQ"
+
+    if not key:
+        print("⚠ No Gemini API key configured. Using System Fallback.")
+        key = SYSTEM_FALLBACK_KEY
+    
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={key}"
+    
+    # Combine system and user prompts
+    full_prompt = f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
+    
+    payload = {
+        "contents": [{
+            "parts": [{"text": full_prompt}]
+        }],
+        "generationConfig": {
+            "temperature": 0.7,
+            "maxOutputTokens": max_tokens
+        }
     }
-    try:
-        url = f"{OLLAMA_BASE_URL}/chat/completions"
-        response = requests.post(url, json=payload, headers=headers, timeout=timeout)
-        response.raise_for_status()
-        return response.json()
-    except Exception as e:
-        print(f"❌ OpenRouter Sync Error: {e}")
-        if hasattr(e, 'response') and e.response:
-             print(f"Response Body: {e.response.text}")
-        return None
+
+    if json_mode:
+        payload["generationConfig"]["response_mime_type"] = "application/json"
+
+    if json_mode:
+        payload["generationConfig"]["response_mime_type"] = "application/json"
+    
+    max_retries = 3
+    current_key = key
+    SYSTEM_FALLBACK_KEY = "AIzaSyBek9KwVGRNicmxCNO1Zv4ubgevRUU4LZQ"
+    
+    for attempt in range(max_retries):
+        try:
+            # Update URL with current key (in case it changed)
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={current_key}"
+            
+            print(f"💎 Calling Gemini API ({GEMINI_MODEL})...")
+            response = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=timeout)
+            
+            # Key/Permission Error Fallback
+            if response.status_code in [400, 401, 403]:
+                print(f"⚠ Gemini Key Error ({response.status_code}).")
+                if current_key != SYSTEM_FALLBACK_KEY:
+                    print("🔄 Switching to System Fallback Key and retrying...")
+                    current_key = SYSTEM_FALLBACK_KEY
+                    continue
+                else:
+                    print("❌ Fallback Key also failed.")
+                    break
+
+            # Handle rate limiting with retry AND Key Switch
+            if response.status_code == 429:
+                print(f"⏳ Rate limited (429).")
+                if current_key != SYSTEM_FALLBACK_KEY:
+                    print("🔄 Switching to System Fallback Key for Rate Limit...")
+                    current_key = SYSTEM_FALLBACK_KEY
+                    continue # Immediate retry with new key
+                
+                wait_time = (2 ** attempt) + 1
+                print(f"⏳ Verification: Waiting {wait_time}s (attempt {attempt+1}/{max_retries})")
+                time.sleep(wait_time)
+                continue
+                
+            response.raise_for_status()
+            data = response.json()
+            
+            if 'candidates' in data and len(data['candidates']) > 0:
+                return data['candidates'][0]['content']['parts'][0]['text']
+            return None
+            
+        except requests.exceptions.HTTPError as e:
+            # ... (Rest of exception handling)
+            if hasattr(e, 'response') and e.response is not None and e.response.status_code == 429:
+                if attempt < max_retries - 1:
+                    wait_time = (2 ** attempt) + 1
+                    print(f"⏳ Rate limited (429). Waiting {wait_time}s...")
+                    time.sleep(wait_time)
+                    continue
+            print(f"❌ Gemini API Error: {e}")
+            if hasattr(e, 'response') and e.response:
+                print(f"Response Body: {e.response.text}")
+             # Non-critical retry for network errors?
+             # Let's just return None to avoid infinite loops unless 429 caught above
+            return None
+        except Exception as e:
+            print(f"❌ Gemini API Error: {e}")
+            return None
+    
+    print(f"❌ Max retries ({max_retries}) exceeded for Gemini API")
+    return None
+
 
 async def generate_notes(
     topic: str, 
@@ -70,21 +192,21 @@ async def generate_notes(
     }
     """
     
-    payload = {
-        "model": LOCAL_MODEL, # "gpt-4o"
-        "messages": [
-             {"role": "system", "content": system_prompt},
-             {"role": "user", "content": f"Topic: {topic}. Context: {context}"}
-        ],
-        "max_tokens": 1000,
-        "temperature": 0.7
-    }
+    user_prompt = f"Topic: {topic}. Context: {context}"
 
-    print(f"DEBUG: Generating notes via OpenRouter ({LOCAL_MODEL})...")
+    print(f"💎 Generating notes via Gemini ({GEMINI_MODEL})...")
 
-    data = await run_in_threadpool(_call_openrouter_api_sync, payload, timeout=120)
+    raw_text = await run_in_threadpool(
+        _call_gemini_api_sync, 
+        user_prompt, 
+        system_prompt, 
+        8192,  # Increased from 1000 to prevent truncation
+        120, 
+        api_key if (api_key and api_key.startswith("AIza")) else None,
+        True # json_mode=True
+    )
 
-    if not data:
+    if not raw_text:
         print("⚠ Notes generation failed. Returning fallback.")
         return NotesResponse(
             explanation="Notes generation failed. Please try again.",
@@ -97,9 +219,14 @@ async def generate_notes(
             resources=[]
         )
 
+    # Debug: Log raw response
+    print(f"💎 Raw Gemini response (first 500 chars): {raw_text[:500]}")
+    
     try:
-        raw_text = data['choices'][0]['message']['content']
         parsed = clean_json_output(raw_text)
+        
+        # Debug: Log parsed result
+        print(f"💎 Parsed result type: {type(parsed)}, keys: {parsed.keys() if parsed else 'None'}")
         
         if parsed:
             # Ensure types match before returning
@@ -109,8 +236,11 @@ async def generate_notes(
                  parsed['summary'] = [parsed['summary']]
                  
             return NotesResponse(**parsed)
-    except Exception:
-        pass
+        else:
+            print(f"❌ clean_json_output returned None for: {raw_text[:200]}")
+    except Exception as e:
+        print(f"❌ Notes parse error: {e}")
+        print(f"❌ Raw text that failed: {raw_text[:300]}")
 
     return NotesResponse(
             explanation="Error parsing notes.",
@@ -143,22 +273,22 @@ async def follow_up_notes(topic: str, previous_notes: dict, user_prompt: str, ap
     }
     """
     
-    payload = {
-        "model": LOCAL_MODEL,
-        "messages": [
-             {"role": "system", "content": system_prompt},
-             {"role": "user", "content": f"Q: {user_prompt}\nContext: {context}"}
-        ],
-        "max_tokens": 500
-    }
+    full_prompt = f"Q: {user_prompt}\nContext: {context}"
 
-    data = await run_in_threadpool(_call_openrouter_api_sync, payload, timeout=60)
+    raw_text = await run_in_threadpool(
+        _call_gemini_api_sync, 
+        full_prompt, 
+        system_prompt, 
+        500, 
+        60, 
+        api_key if (api_key and api_key.startswith("AIza")) else None,
+        True # json_mode=True
+    )
 
-    if not data:
+    if not raw_text:
          return NotesResponse(explanation="AI busy.", variable_breakdown={}, formulas=[], example="", mistakes=[], practice_questions=[], summary=[], resources=[])
 
     try:
-        raw_text = data['choices'][0]['message']['content']
         parsed = clean_json_output(raw_text)
         
         if parsed:
@@ -171,4 +301,3 @@ async def follow_up_notes(topic: str, previous_notes: dict, user_prompt: str, ap
         pass
         
     return NotesResponse(explanation="AI Error", variable_breakdown={}, formulas=[], example="", mistakes=[], practice_questions=[], summary=[], resources=[])
-

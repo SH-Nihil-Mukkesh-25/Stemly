@@ -6,12 +6,14 @@ class ProjectileMotionWidget extends StatefulWidget {
   final double U;
   final double theta;
   final double g;
+  final Function(Map<String, String>)? onSimulationUpdate;
   
   const ProjectileMotionWidget({
     super.key,
     required this.U,
     required this.theta,
     required this.g,
+    this.onSimulationUpdate,
   });
   
   @override
@@ -27,10 +29,35 @@ class _ProjectileMotionWidgetState extends State<ProjectileMotionWidget>
   @override
   void initState() {
     super.initState();
-    
+    _initSimulation();
+  }
+
+  @override
+  void didUpdateWidget(ProjectileMotionWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.U != widget.U || oldWidget.theta != widget.theta || oldWidget.g != widget.g) {
+      _controller.dispose();
+      _initSimulation();
+    }
+  }
+
+  void _initSimulation() {
     final thetaRad = widget.theta * pi / 180;
     totalFlightTime = (2 * widget.U * sin(thetaRad)) / widget.g;
     
+    // Calculate Stats
+    final range = (widget.U * widget.U * sin(2 * thetaRad)) / widget.g;
+    final maxHeight = (widget.U * widget.U * sin(thetaRad) * sin(thetaRad)) / (2 * widget.g);
+    
+    // Emit Stats
+    if (widget.onSimulationUpdate != null) {
+       widget.onSimulationUpdate!({
+         "Range": "${range.toStringAsFixed(1)} m",
+         "Max Height": "${maxHeight.toStringAsFixed(1)} m",
+         "Flight Time": "${totalFlightTime.toStringAsFixed(1)} s",
+       });
+    }
+
     _controller = AnimationController(
       vsync: this,
       duration: Duration(milliseconds: (totalFlightTime * 1000 + 1000).toInt()),
@@ -125,8 +152,7 @@ class ProjectileMotionPainter extends CustomPainter {
       _drawVelocityVector(canvas, originX, originY, scale, pos, elapsedTime);
     }
     
-    // Info panel
-    _drawInfoPanel(canvas, size, range, maxHeight);
+    // Removed Info Panel
   }
   
   Offset _calculatePosition(double t) {

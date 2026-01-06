@@ -30,7 +30,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
   Widget? visualiserWidget;
   bool loading = true;
 
-  final serverIp = "http://10.12.180.151:8080";
+  final serverIp = 'http://10.0.2.2:8080';
 
   @override
   void initState() {

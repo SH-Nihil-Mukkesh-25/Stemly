@@ -24,10 +24,11 @@ from config import FALLBACK_GROQ_API_KEY
 async def generate_notes_route(
     req: NotesGenerateRequest, 
     request: Request,
+    x_ai_api_key: str = Header(None, alias="X-AI-API-Key"),
     x_groq_api_key: str = Header(None, alias="x-groq-api-key")
 ):
-    # Use header key or fallback from env
-    api_key_to_use = x_groq_api_key or FALLBACK_GROQ_API_KEY
+    # Use X-AI-API-Key first (Flutter), then legacy header, then env fallback
+    api_key_to_use = x_ai_api_key or x_groq_api_key or FALLBACK_GROQ_API_KEY
     
     # API Key check is removed for Local AI
     # if not api_key_to_use:
@@ -40,8 +41,9 @@ async def generate_notes_route(
             local_path = resolve_scan_path(req.image_path)
             relative_path = scan_path_to_relative(local_path)
         except ValueError as exc:
-            pass # Be lenient if image path issues occur
-            # raise HTTPException(status_code=400, detail=str(exc)) from exc
+            pass # Be lenient for invalid paths
+            local_path = None
+            relative_path = None
 
     user_id = request.state.user["uid"]
 
@@ -79,10 +81,11 @@ async def generate_notes_route(
 async def follow_up_notes_route(
     req: NotesFollowUpRequest, 
     request: Request,
+    x_ai_api_key: str = Header(None, alias="X-AI-API-Key"),
     x_groq_api_key: str = Header(None, alias="x-groq-api-key")
 ):
-    # Use header key or fallback from env
-    api_key_to_use = x_groq_api_key or FALLBACK_GROQ_API_KEY
+    # Use X-AI-API-Key first (Flutter), then legacy header, then env fallback
+    api_key_to_use = x_ai_api_key or x_groq_api_key or FALLBACK_GROQ_API_KEY
     
     # if not api_key_to_use:
     #     raise HTTPException(status_code=400, detail="Missing X-Groq-Api-Key.")

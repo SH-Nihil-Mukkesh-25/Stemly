@@ -55,7 +55,12 @@ class GroqService extends ChangeNotifier {
   
   /// Auto-detect Provider
   void _configureProvider(String key) {
-    if (key.startsWith("sk-or-")) {
+    if (key.startsWith("AIza")) {
+       _provider = "Gemini";
+       // Validation URL for Gemini (Google AI Free Tier)
+       _baseUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$key";
+       _modelName = "gemini-2.5-flash";
+    } else if (key.startsWith("sk-or-")) {
        _provider = "OpenRouter";
        _baseUrl = "https://openrouter.ai/api/v1/chat/completions";
        _modelName = "google/gemini-2.0-flash-exp:free"; // High quality free model
@@ -77,19 +82,35 @@ class GroqService extends ChangeNotifier {
   /// Test connection to AI Provider
   Future<String?> _testApiKey(String key) async {
     try {
-      final response = await http.post(
-        Uri.parse(_baseUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $key',
-        },
-        body: jsonEncode({
+      dynamic body;
+      Map<String, String> headers = {
+        'Content-Type': 'application/json',
+      };
+
+      if (_provider == "Gemini") {
+        // Gemini REST API Body
+        body = {
+          "contents": [{
+            "parts": [{"text": "Ping"}]
+          }]
+        };
+        // API Key is already in URL for Gemini
+      } else {
+        // OpenAI Compatible Body
+        headers['Authorization'] = 'Bearer $key';
+        body = {
           "model": _modelName,
           "messages": [
             {"role": "user", "content": "Ping"}
           ],
           "max_tokens": 1
-        }),
+        };
+      }
+
+      final response = await http.post(
+        Uri.parse(_baseUrl),
+        headers: headers,
+        body: jsonEncode(body),
       );
 
       print("$_provider Response: ${response.statusCode} - ${response.body}");

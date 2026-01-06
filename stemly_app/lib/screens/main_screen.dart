@@ -27,12 +27,14 @@ class _MainScreenState extends State<MainScreen> {
   final ImagePicker _picker = ImagePicker();
   // CONFIGURATION
   // Set to true for production (APK/Web deployment), false for local dev
+  // Set to true for production (APK/Web deployment), false for local dev
   static const bool _isProduction = false; 
 
   // PRODUCTION URL (Update this after Vercel deployment)
-  static const String _prodUrl = "https://your-stemly-backend.vercel.app";
+  static const String _prodUrl = "https://stemly-backend.vercel.app";
   // DEV URL
-  static const String _devUrl = "http://10.12.180.151:8080";
+  // DEV URL (Use 10.0.2.2 for Android Emulator to reach localhost)
+  static const String _devUrl = "http://10.0.2.2:8080";
 
   final String serverIp = _isProduction ? _prodUrl : _devUrl; 
   
@@ -149,7 +151,7 @@ class _MainScreenState extends State<MainScreen> {
 
     final authService = Provider.of<FirebaseAuthService>(context, listen: false);
     // Note: We keep groqService for now if needed for other things, but architecture is changing.
-    // final groqService = Provider.of<GroqService>(context, listen: false);
+    final groqService = Provider.of<GroqService>(context, listen: false);
 
     final token = await authService.currentUser?.getIdToken();
 
@@ -167,6 +169,9 @@ class _MainScreenState extends State<MainScreen> {
     );
 
     request.headers['Authorization'] = 'Bearer $token';
+    if (groqService.apiKey != null) {
+      request.headers['X-AI-API-Key'] = groqService.apiKey!;
+    }
 
     // Add Image
     final mimeType = image.path.toLowerCase().endsWith(".png")
@@ -223,13 +228,24 @@ class _MainScreenState extends State<MainScreen> {
 
         // Auto-fetch notes
         // We pass 'savedPath' (LOCAL PERMANENT) so the UI can display it
-        await _fetchNotes(topic, variables, savedPath, token, ocrText);
+        await _fetchNotes(topic, variables, savedPath, token, ocrText, groqService.apiKey);
 
       } else {
         if (mounted) {
           _hideLoading();
           setState(() => _isProcessing = false);
-          _showError("Upload Failed: ${response.statusCode}");
+          String errorMsg = "Upload Failed: ${response.statusCode}";
+          try {
+            final errData = jsonDecode(responseBody);
+            if (errData['detail'] != null) {
+              errorMsg = errData['detail'].toString();
+            }
+          } catch (_) {
+            // If body isn't JSON, just append it if not too long
+            if (responseBody.length < 200) errorMsg += " : $responseBody";
+          }
+          
+          _showError(errorMsg);
         }
       }
     } catch (e) {
@@ -251,6 +267,7 @@ class _MainScreenState extends State<MainScreen> {
     String? imagePath,
     String token,
     String ocrText,
+    String? apiKey,
   ) async {
     try {
       final url = Uri.parse("$serverIp/notes/generate");
@@ -261,6 +278,7 @@ class _MainScreenState extends State<MainScreen> {
         headers: {
           "Content-Type": "application/json",
           "Authorization": "Bearer $token",
+          if (apiKey != null) "X-AI-API-Key": apiKey,
         },
         body: jsonEncode({
           "topic": topic,

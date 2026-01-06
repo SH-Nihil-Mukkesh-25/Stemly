@@ -4,7 +4,7 @@ import requests
 import time
 from typing import List, Optional
 from pydantic import BaseModel
-from config import OLLAMA_BASE_URL, LOCAL_MODEL, OPENROUTER_API_KEY
+from config import GEMINI_API_KEY, GEMINI_MODEL
 
 
 class QuizQuestionModel(BaseModel):
@@ -286,7 +286,7 @@ def get_fallback_quiz(topic: str, num_questions: int = 5) -> dict:
     if topic in SAMPLE_QUIZZES:
         return _prepare_fallback(SAMPLE_QUIZZES[topic], num_questions)
     
-    # Try partial match (e.g. "Atomic Structure" -> match "Chemistry" or "Atom")
+    # Try partial match
     topic_lower = topic.lower()
     
     # Keyword mapping
@@ -353,7 +353,7 @@ OUTPUT ONLY VALID JSON (no markdown):
 
 async def generate_quiz_with_ai(topic: str, num_questions: int = 5, api_key: str = None) -> dict:
     """
-    AI generates MCQs with retry logic and fallback support.
+    AI generates MCQs using Google Gemini with retry logic and fallback support.
     """
     
     if not topic or len(topic.strip()) < 2:
@@ -362,56 +362,79 @@ async def generate_quiz_with_ai(topic: str, num_questions: int = 5, api_key: str
     if num_questions < 1 or num_questions > 20:
         num_questions = 5
     
-    full_prompt = ADVANCED_QUIZ_PROMPT.format(topic=topic.strip(), num_questions=num_questions)
-
-    payload = {
-        "model": LOCAL_MODEL,
-        "messages": [
-            {"role": "system", "content": "You are a quiz generator. Output ONLY valid JSON."},
-            {"role": "user", "content": full_prompt}
-        ],
-        "max_tokens": 2000,
-        "temperature": 0.5
-    }
+    # Use provided key or fall back to config
+    gemini_key = api_key if (api_key and api_key.startswith("AIza")) else GEMINI_API_KEY
     
-    headers = {
-        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-        "Content-Type": "application/json",
-        "HTTP-Referer": "http://localhost",
-        "X-Title": "Stemly"
+    SYSTEM_FALLBACK_KEY = "AIzaSyBek9KwVGRNicmxCNO1Zv4ubgevRUU4LZQ"
+
+    if not gemini_key:
+        print("⚠ No Gemini API key. Attempting System Fallback Key.")
+        gemini_key = SYSTEM_FALLBACK_KEY
+    
+    full_prompt = ADVANCED_QUIZ_PROMPT.format(topic=topic.strip(), num_questions=num_questions)
+    
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={gemini_key}"
+    
+    payload = {
+        "contents": [{
+            "parts": [{"text": full_prompt}]
+        }],
+        "generationConfig": {
+            "temperature": 0.5,
+            "maxOutputTokens": 4000,
+            "response_mime_type": "application/json"
+        }
     }
 
-    # Retry logic with exponential backoff
+    # Retry logic with exponential backoff & Key Fallback
+    SYSTEM_FALLBACK_KEY = "AIzaSyBek9KwVGRNicmxCNO1Zv4ubgevRUU4LZQ"
+    current_key = gemini_key
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={current_key}"
+
     max_retries = 2
     for attempt in range(max_retries + 1):
         try:
-            url = f"{OLLAMA_BASE_URL}/chat/completions"
-            print(f"🎯 Quiz attempt {attempt+1}/{max_retries+1}: {topic} ({num_questions} questions)")
+            print(f"🎯 Quiz attempt {attempt+1}/{max_retries+1}: {topic} ({num_questions} questions) via Gemini")
             
-            response = requests.post(url, json=payload, headers=headers, timeout=60)
+            response = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=60)
             
-            # Handle rate limiting
+            # Handle Bad Key (400) or Permission (403) or Auth (401)
+            if response.status_code in [400, 401, 403]:
+                if current_key != SYSTEM_FALLBACK_KEY:
+                     print(f"⚠ Gemini Key Error ({response.status_code}). Switching to System Fallback Key...")
+                     current_key = SYSTEM_FALLBACK_KEY
+                     url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={current_key}"
+                     continue # Immediate retry with new key
+                else:
+                     print(f"❌ Fallback Key also failed ({response.status_code}).")
+                     break # Stop retrying
+
+            # Handle rate limiting with retry AND Key Switch
             if response.status_code == 429:
+                print(f"⏳ Rate limited (429).")
+                if current_key != SYSTEM_FALLBACK_KEY:
+                    print("🔄 Switching to System Fallback Key for Rate Limit...")
+                    current_key = SYSTEM_FALLBACK_KEY
+                    url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={current_key}"
+                    continue # Immediate retry with new key
+
                 if attempt < max_retries:
                     wait_time = (2 ** attempt) * 2  # 2s, 4s
-                    print(f"⏳ Rate limited. Waiting {wait_time}s before retry...")
+                    print(f"⏳ Waiting {wait_time}s before retry...")
                     time.sleep(wait_time)
                     continue
                 else:
-                    # Final attempt failed, use fallback
                     print("❌ Rate limit persists. Using fallback quiz...")
-                    fallback = get_fallback_quiz(topic, num_questions)
-                    if fallback:
-                        return fallback
-                    return {"error": "API rate limited. Try again in a few minutes.", "questions": []}
+                    return get_fallback_quiz(topic, num_questions)
             
             response.raise_for_status()
             data = response.json()
             
-            if 'choices' not in data or len(data['choices']) == 0:
+            if 'candidates' not in data or len(data['candidates']) == 0:
                 continue
                 
-            raw_text = data['choices'][0]['message']['content']
+            raw_text = data['candidates'][0]['content']['parts'][0]['text']
+            print(f"💎 Gemini Quiz Response received ({len(raw_text)} chars)")
             parsed = clean_json_output(raw_text)
             
             if not parsed:
@@ -450,25 +473,17 @@ async def generate_quiz_with_ai(topic: str, num_questions: int = 5, api_key: str
                 })
             
             if len(validated) > 0:
-                print(f"✅ Generated {len(validated)} questions")
+                print(f"✅ Generated {len(validated)} questions via Gemini")
                 return {"topic": topic, "difficulty": "mixed", "questions": validated}
 
         except requests.exceptions.Timeout:
             print(f"⏱ Timeout on attempt {attempt+1}")
             if attempt == max_retries:
-                fallback = get_fallback_quiz(topic, num_questions)
-                if fallback:
-                    return fallback
+                return get_fallback_quiz(topic, num_questions)
         except Exception as e:
             print(f"❌ Error attempt {attempt+1}: {e}")
             if attempt == max_retries:
-                fallback = get_fallback_quiz(topic, num_questions)
-                if fallback:
-                    return fallback
+                return get_fallback_quiz(topic, num_questions)
     
     # All retries failed, try fallback
-    fallback = get_fallback_quiz(topic, num_questions)
-    if fallback:
-        return fallback
-    
-    return {"error": "Quiz generation failed after retries", "questions": []}
+    return get_fallback_quiz(topic, num_questions)

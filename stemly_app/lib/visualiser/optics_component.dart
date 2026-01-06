@@ -17,9 +17,12 @@ class OpticsWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: OpticsPainter(f: f, u: u, h_o: h_o),
-      child: Container(),
+    return SizedBox(
+      width: double.infinity,
+      height: double.infinity,
+      child: CustomPaint(
+        painter: OpticsPainter(f: f, u: u, h_o: h_o),
+      ),
     );
   }
 }

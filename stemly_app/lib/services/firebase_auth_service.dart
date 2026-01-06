@@ -20,7 +20,7 @@ const String _tokenStorageKey = "stemly_id_token";
 const String _profileStorageKey = "stemly_user_profile";
 const String _apiBaseUrl = String.fromEnvironment(
   'STEMLY_API_BASE_URL',
-  defaultValue: 'http://10.12.180.151:8080',
+  defaultValue: 'http://10.0.2.2:8080',
 );
 
 class FirebaseAuthService extends ChangeNotifier {

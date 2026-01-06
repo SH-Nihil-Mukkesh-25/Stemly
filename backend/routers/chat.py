@@ -126,17 +126,19 @@ async def handle_unified_chat(
 async def chat_ask(
     req: ChatRequest, 
     request: Request,
-    x_groq_api_key: str = Header(None, alias="x-groq-api-key")
+    x_ai_api_key: str = Header(None, alias="X-AI-API-Key")
 ):
-    # Ignore API key check
     user_id = request.state.user["uid"]
     print(f"💬 Chat request from {user_id}: {req.user_prompt}")
     
+    if x_ai_api_key:
+        print(f"DEBUG: Using custom AI API Key: {x_ai_api_key[:5]}...")
+
     response = await handle_unified_chat(
         user_prompt=req.user_prompt,
         topic=req.topic,
         variables=req.variables,
-        api_key="local-dummy",
+        api_key=x_ai_api_key,
         image_path=req.image_path,
         current_params=req.current_params,
         template_id=req.template_id,

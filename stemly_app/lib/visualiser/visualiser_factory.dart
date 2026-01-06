@@ -14,7 +14,7 @@ import 'generic_diagram.dart';
 
 class VisualiserFactory {
   /// Creates the appropriate visualiser widget based on the template ID.
-  static Widget create(VisualTemplate template) {
+  static Widget create(VisualTemplate template, {Function(Map<String, String>)? onSimulationUpdate}) {
     final id = (template.templateId).toLowerCase().replaceAll("-", "_");
     final p = template.parameters;
 
@@ -29,6 +29,7 @@ class VisualiserFactory {
         U: getVal("U"),
         theta: getVal("theta"),
         g: getVal("g"),
+        onSimulationUpdate: onSimulationUpdate,
       );
     }
 

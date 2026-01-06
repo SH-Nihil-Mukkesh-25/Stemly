@@ -1,33 +1,36 @@
 import os
-
 from dotenv import load_dotenv
-from langchain_openai import ChatOpenAI
-from openai import AsyncOpenAI
 
 # Load environment variables once, at import time.
 load_dotenv()
 
 # ==============================================================================
-# AI Configuration (OpenRouter API)
-OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-OPENROUTER_MODEL = "meta-llama/llama-3.2-3b-instruct:free"  # Free model
+# AI Configuration (Google Gemini API)
+# ==============================================================================
 
-# Legacy aliases for compatibility
-OLLAMA_BASE_URL = OPENROUTER_BASE_URL
-LOCAL_MODEL = OPENROUTER_MODEL
+# Gemini API Configuration
+GEMINI_API_KEY = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
+GEMINI_MODEL = "gemini-2.5-flash"  # Latest Gemini 2.5 Flash model
+GEMINI_VISION_MODEL = "gemini-2.5-flash"  # Same model handles vision
 
-# For compatibility with existing imports
-GENERAL_MODEL = LOCAL_MODEL
+# Legacy aliases for compatibility (redirecting to Gemini)
+OPENROUTER_API_KEY = GEMINI_API_KEY
+LOCAL_MODEL = GEMINI_MODEL
+VISION_MODEL = GEMINI_VISION_MODEL
+OLLAMA_BASE_URL = GEMINI_BASE_URL
+GENERAL_MODEL = GEMINI_MODEL
 
-# Vision model for no-text scans
-VISION_MODEL = "google/gemini-2.0-flash-exp:free"
-
-# API Keys
+# Legacy keys (deprecated, kept for import compatibility)
 FALLBACK_GROQ_API_KEY = None
-AIML_API_KEY = os.getenv("AIML_API_KEY")  # Legacy
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+AIML_API_KEY = os.getenv("AIML_API_KEY")  # For image generation only
+OPENROUTER_API_KEY_LEGACY = os.getenv("OPENROUTER_API_KEY")
 
 def is_ai_enabled() -> bool:
-    """Always True as we depend on user-provided keys or basic fallback."""
-    return True
+    """Returns True if Gemini API key is configured."""
+    return bool(GEMINI_API_KEY)
 
+def get_gemini_url(model: str = None) -> str:
+    """Get the full Gemini API URL for generateContent."""
+    m = model or GEMINI_MODEL
+    return f"{GEMINI_BASE_URL}/models/{m}:generateContent?key={GEMINI_API_KEY}"

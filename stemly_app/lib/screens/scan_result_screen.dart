@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 
 import '../services/firebase_auth_service.dart';
+import '../services/groq_service.dart';
 
 // NEW: Import Quiz Screen
 import '../quiz/quiz_play_screen.dart';
@@ -43,7 +44,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
   bool _isSendingChat = false;
   final ScrollController _chatScrollController = ScrollController();
 
-  final String serverIp = "http://10.12.180.151:8080";
+  final String serverIp = "http://10.0.2.2:8080";
 
 
   @override
@@ -115,9 +116,16 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
   // ==========================================================
   // CREATE VISUALISER WIDGET
   // ==========================================================
+  Map<String, String> _simulationStats = {};
 
   Widget _createVisualiser(VisualTemplate template) {
-    return VisualiserFactory.create(template);
+    return VisualiserFactory.create(template, onSimulationUpdate: (stats) {
+      if (stats.toString() != _simulationStats.toString()) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) setState(() => _simulationStats = stats);
+        });
+      }
+    });
   }
 
   // ==========================================================
@@ -202,12 +210,17 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
           params[entry.key] = entry.value.value;
         }
       }
+      
+      // Get AI API Key
+      final groqService = context.read<GroqService>();
+      final aiApiKey = groqService.apiKey;
 
       final response = await http.post(
         Uri.parse("$serverIp/visualiser/chat"),
         headers: {
           "Content-Type": "application/json",
           "Authorization": "Bearer $token",
+          if (aiApiKey != null) "X-AI-API-Key": aiApiKey,
         },
         body: jsonEncode({
           "message": message,
@@ -313,7 +326,10 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
         child: Column(
           children: [
             Container(
-              height: 300,
+               // Reduced height as requested to give more room? 
+               // Actually user said put flags in param section to give more room.
+               // So keeping height or slightly increasing it is fine if overlay is gone.
+              height: 320, 
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -341,6 +357,42 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // SIMULATION STATS (FLAGS)
+                    if (_simulationStats.isNotEmpty) ...[
+                       Row(
+                        children: [
+                          Icon(Icons.analytics, size: 18, color: Colors.orange),
+                          const SizedBox(width: 8),
+                          Text("Simulation Status", style: TextStyle(fontWeight: FontWeight.bold, color: deepBlue)),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 8,
+                        children: _simulationStats.entries.map((e) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(e.key, style: TextStyle(fontSize: 10, color: Colors.black54)),
+                                Text(e.value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.deepOrange)),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 16),
+                      Divider(color: Colors.grey.withOpacity(0.1)),
+                      const SizedBox(height: 16),
+                    ],
+
                     Row(
                       children: [
                         Icon(Icons.settings, size: 18, color: deepBlue),
