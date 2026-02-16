@@ -1,0 +1,96 @@
+name: Docs Check
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "**.md"
+      - "docs/**"
+      - ".github/workflows/docs-check.yml"
+  pull_request:
+    branches: [master]
+    paths:
+      - "**.md"
+      - "docs/**"
+      - ".github/workflows/docs-check.yml"
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  markdown-lint:
+    name: Markdown Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint markdown files
+        uses: DavidAnson/markdownlint-cli2-action@v19
+        with:
+          globs: |
+            **/*.md
+            !**/node_modules/**
+            !**/.venv/**
+          config: |
+            {
+              "default": true,
+              "MD013": false,
+              "MD033": false,
+              "MD041": false
+            }
+
+  link-check:
+    name: Check Links
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for broken links
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --no-progress
+            --exclude-mail
+            --exclude "localhost"
+            --exclude "127.0.0.1"
+            --exclude "<your-org>"
+            --exclude "stemly.team@gmail.com"
+            "**/*.md"
+          fail: false
+
+  docs-completeness:
+    name: Documentation Completeness
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check required docs exist
+        run: |
+          missing=0
+          for file in README.md CONTRIBUTING.md CODE_OF_CONDUCT.md LICENSE SECURITY.md CHANGELOG.md; do
+            if [ ! -f "$file" ]; then
+              echo "::error::Missing required file: $file"
+              missing=1
+            else
+              echo "Found: $file"
+            fi
+          done
+          if [ $missing -eq 1 ]; then
+            exit 1
+          fi
+
+      - name: Check issue templates exist
+        run: |
+          missing=0
+          for file in .github/ISSUE_TEMPLATE/bug_report.md .github/ISSUE_TEMPLATE/feature_request.md .github/PULL_REQUEST_TEMPLATE.md; do
+            if [ ! -f "$file" ]; then
+              echo "::warning::Missing template: $file"
+              missing=1
+            else
+              echo "Found: $file"
+            fi
+          done

@@ -1,5 +1,4 @@
-from fastapi import APIRouter, Query, Request, Depends, Header, HTTPException
-# from openai import AuthenticationError
+from fastapi import APIRouter, Query, Depends, Header, HTTPException
 from services.quiz_service import QuizService
 from services.ai_quiz import generate_quiz_with_ai
 from auth.auth_middleware import require_firebase_user
@@ -30,10 +29,6 @@ async def ai_generate_quiz(
     """
     # Use X-AI-API-Key first (from Flutter), then legacy header
     api_key_to_use = x_ai_api_key or x_groq_api_key
-    
-    # API Key check removed to allow System Fallback
-    # if not api_key_to_use:
-    #     raise HTTPException(status_code=400, detail="Missing API key...")
 
     try:
         ai_quiz = await generate_quiz_with_ai(topic, count, api_key=api_key_to_use)

@@ -1,230 +1,188 @@
-# 📘 Stemly Backend
+# Stemly Backend
 
-> **AI-Powered STEM Learning Assistant**  
-> Scan, analyze, and learn from STEM diagrams using Gemini AI
+FastAPI backend powering Stemly's AI-driven STEM learning features.
 
-[![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=flat&logo=fastapi)](https://fastapi.tiangolo.com/)
-[![Gemini AI](https://img.shields.io/badge/Gemini%202.0-4285F4?style=flat&logo=google)](https://ai.google.dev/)
-[![Python 3.8+](https://img.shields.io/badge/Python-3.8+-3776AB?style=flat&logo=python)](https://www.python.org/)
+## Tech Stack
 
----
+- **Framework**: FastAPI (Python 3.10+)
+- **Database**: MongoDB (via Motor async driver)
+- **Auth**: Firebase Admin SDK (ID token verification)
+- **AI**: Google Gemini 2.5 Flash (vision + text)
+- **Deployment**: Vercel
 
-## 🌟 Overview
+## Prerequisites
 
-Stemly enables students to scan STEM diagrams with their mobile device, automatically detect topics, extract variables, and maintain a comprehensive scan history. Built with a clean, modular architecture for seamless scalability.
+| Tool | Version | Installation |
+|------|---------|-------------|
+| Python | 3.10+ | [python.org](https://www.python.org/downloads/) |
+| pip | latest | Included with Python |
+| MongoDB | 6.0+ or Atlas | [mongodb.com](https://www.mongodb.com/try/download/community) |
+| Firebase project | — | [Firebase Console](https://console.firebase.google.com/) |
+| Gemini API key | — | [AI Studio](https://aistudio.google.com/apikey) |
 
-**Phase 1 Status:** ✅ Complete
+## Installation
 
----
+```bash
+# From the repository root
+cd backend
 
-## ✨ Features
+# Create virtual environment
+python -m venv .venv
 
-### 🔍 Smart Image Processing
-- **Upload & Scan** - Seamless image upload from Flutter camera integration
-- **Automatic Storage** - Images saved with organized file management
+# Activate it
+# Windows
+.venv\Scripts\activate
+# macOS / Linux
+source .venv/bin/activate
 
-### 🤖 AI-Powered Analysis
-- **Topic Detection** - Identifies STEM concepts (e.g., Projectile Motion, Circuits, Refraction)
-- **Variable Extraction** - Automatically detects key variables (`v₀`, `θ`, `g`, etc.)
-- **Powered by** Gemini 2.0 Flash vision model
+# Install runtime dependencies
+pip install -r requirements.txt
 
-### 💾 Persistent History
-- **User-Specific Storage** - Each scan linked to user ID
-- **Complete Metadata** - Topic, variables, image path, and timestamp
-- **Easy Retrieval** - Query full scan history per user
+# Install development tools (linting, testing, formatting)
+pip install -r requirements-dev.txt
+```
 
-### 🎯 Flutter-Ready Output
-- **Strict JSON** - No markdown, no code fences
-- **Consistent Format** - Predictable structure for mobile parsing
-- **Error Handling** - Graceful fallbacks and validation
+## Configuration
 
----
+Copy the example env file and fill in your values:
 
-## 📁 Project Structure
+```bash
+cp .env.example .env
+```
+
+Required variables:
+
+| Variable | Description |
+|----------|-------------|
+| `MONGO_URI` | MongoDB connection string |
+| `GOOGLE_API_KEY` | Google Gemini API key |
+| `FIREBASE_CREDENTIALS_FILE` | Path to Firebase service account JSON |
+
+See `.env.example` for all available options and documentation.
+
+## Running Locally
+
+```bash
+# Start the development server with auto-reload
+uvicorn main:app --reload
+
+# Or specify host/port
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+The server starts at `http://localhost:8000`.
+
+- **Interactive API docs**: http://localhost:8000/docs (Swagger UI)
+- **Alternative docs**: http://localhost:8000/redoc (ReDoc)
+- **Health check**: http://localhost:8000/ (returns `{"message": "Backend is running!"}`)
+
+## API Endpoints
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/` | No | Health check |
+| POST | `/scan/upload` | Yes | Upload and analyze a STEM diagram |
+| GET | `/scan/history/{user_id}` | Yes | Get scan history for a user |
+| POST | `/notes/generate` | Yes | Generate AI notes from a topic |
+| POST | `/visualiser/generate` | Yes | Generate physics simulation data |
+| POST | `/visualiser/engine/generate` | Yes | Generate visualiser engine code |
+| POST | `/quiz/generate` | Yes | Generate quiz from STEM content |
+| POST | `/chat/` | Yes | AI tutor chat |
+| GET | `/auth/me` | Yes | Get current authenticated user |
+
+All authenticated endpoints require a Firebase ID token in the `Authorization: Bearer <token>` header.
+
+## Running Tests
+
+```bash
+# Run all tests
+pytest -v
+
+# Run with coverage report
+pytest --cov=. --cov-report=term-missing -v
+
+# Run a specific test file
+pytest test_db_connection.py -v
+```
+
+## Code Quality
+
+```bash
+# Format code
+black .
+
+# Check formatting without modifying
+black --check .
+
+# Lint
+flake8 . --max-line-length=120
+
+# Type checking
+mypy . --ignore-missing-imports
+```
+
+## Project Structure
 
 ```
 backend/
-├── 📄 main.py                    # FastAPI application entry point
-├── ⚙️  config.py                  # Environment & Gemini configuration
-├── 📋 requirements.txt           # Python dependencies
-├── 📖 README.md                  # This file
+├── main.py                  # FastAPI app entry point
+├── config.py                # Environment & AI configuration
+├── requirements.txt         # Runtime dependencies
+├── requirements-dev.txt     # Development dependencies
+├── .env.example             # Environment template
+├── vercel.json              # Vercel deployment config
 │
-├── 🛣️  routers/
-│   └── scan.py                   # Scan upload & history endpoints
+├── auth/
+│   ├── firebase.py          # Firebase token verification
+│   ├── auth_middleware.py   # Authentication dependency
+│   └── auth_router.py      # /auth endpoints
 │
-├── 🔧 services/
-│   ├── ai_detector.py            # Gemini vision integration
-│   ├── storage.py                # Image file management
-│   └── history_service.py        # Scan history (in-memory, DB-ready)
+├── routers/
+│   ├── scan.py              # /scan endpoints
+│   ├── notes.py             # /notes endpoints
+│   ├── visualiser.py        # /visualiser endpoints
+│   ├── visualiser_engine.py # /visualiser/engine endpoints
+│   ├── quiz_router.py       # /quiz endpoints
+│   └── chat.py              # /chat endpoints
 │
-├── 📦 static/
-│   └── scans/                    # Uploaded images directory
+├── services/
+│   ├── ai_detector.py       # Gemini vision integration
+│   ├── storage.py           # Image file management
+│   └── history_service.py   # In-memory scan history
 │
-├── 🔐 .env                       # API keys (not in version control)
-└── 🚫 .gitignore                 # Ignored files configuration
+├── database/
+│   ├── db.py                # MongoDB connection
+│   ├── user_model.py        # User upsert operations
+│   ├── history_model.py     # Scan history persistence
+│   ├── notes_model.py       # Notes persistence
+│   └── visualiser_model.py  # Visualiser persistence
+│
+└── static/
+    └── scans/               # Uploaded images
 ```
 
----
+## Troubleshooting
 
-## 🚀 Quick Start
+### MongoDB connection fails
 
-### Prerequisites
-- Python 3.8 or higher
-- Gemini API key ([Get one here](https://ai.google.dev/))
+- Verify `MONGO_URI` is correct in `.env`
+- If using Atlas, ensure your IP is whitelisted in Network Access
+- The backend will start without MongoDB but database features will be disabled
 
-### 1️⃣ Clone Repository
-```bash
-git clone https://github.com/SH-Nihil-Mukkesh-25/Stemly.git
-cd stemly/backend
-```
+### Firebase token verification fails
 
-### 2️⃣ Create Virtual Environment
-```bash
-# Windows
-python -m venv venv
-./venv/Scripts/activate
+- Ensure `FIREBASE_CREDENTIALS_FILE` points to a valid service account JSON
+- The service account must belong to the same Firebase project as the frontend
+- Check that the token hasn't expired (Firebase tokens last 1 hour)
 
-# macOS/Linux
-python3 -m venv venv
-source venv/bin/activate
-```
+### Gemini API errors
 
-### 3️⃣ Install Dependencies
-```bash
-pip install -r requirements.txt
-```
+- Verify `GOOGLE_API_KEY` is set and valid
+- Check your API quota at [AI Studio](https://aistudio.google.com/)
+- The backend checks `is_ai_enabled()` — if the key is missing, AI features return errors
 
-### 4️⃣ Configure Environment
-Create a `.env` file in the `backend/` directory:
-```env
-GEMINI_API_KEY=your_gemini_api_key_here
-```
+### Import errors on startup
 
-> ⚠️ **Important:** Never commit `.env` to version control
-
-### 5️⃣ Launch Server
-```bash
-uvicorn main:app --reload
-```
-
-✅ **Server running at:** `http://127.0.0.1:8000`  
-📚 **API Documentation:** `http://127.0.0.1:8000/docs`
-
----
-
-## 📡 API Reference
-
-### **POST** `/scan/upload`
-Upload and analyze a STEM diagram
-
-**Request** (multipart/form-data)
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `user_id` | string | ✅ | Unique user identifier |
-| `file` | binary | ✅ | Image file (PNG/JPG) |
-
-**Response** (200 OK)
-```json
-{
-  "status": "success",
-  "topic": "Projectile Motion",
-  "variables": ["U", "theta", "R"],
-  "image_path": "static/scans/diagram_abc123.png",
-  "history_id": "550e8400-e29b-41d4-a716-446655440000"
-}
-```
-
----
-
-### **GET** `/scan/history/{user_id}`
-Retrieve scan history for a user
-
-**Parameters**
-| Name | Type | Location | Description |
-|------|------|----------|-------------|
-| `user_id` | string | path | User identifier |
-
-**Response** (200 OK)
-```json
-{
-  "history": [
-    {
-      "id": "550e8400-e29b-41d4-a716-446655440000",
-      "user_id": "test123",
-      "image_path": "static/scans/diagram_abc123.png",
-      "topic": "Projectile Motion",
-      "variables": ["U", "theta", "R"],
-      "timestamp": "2025-11-25T11:31:50"
-    }
-  ]
-}
-```
-
----
-
-## 🧠 AI Integration
-
-### Gemini 2.0 Flash Pipeline
-
-```
-📸 Image Upload → 🔄 Byte Processing → 🤖 Gemini Vision API
-                                              ↓
-                                    📊 JSON Response
-                                              ↓
-                            🧹 Sanitization & Validation
-                                              ↓
-                                    ✅ Clean Output
-```
-
-**Key Features:**
-- Markdown-free responses
-- Code fence removal
-- Strict JSON parsing
-- Automatic fallback handling
-- Error recovery system
-
----
-
-## 🔒 Security
-
-| Feature | Status | Details |
-|---------|--------|---------|
-| Environment Variables | ✅ | API keys in `.env` (gitignored) |
-| Secure Loading | ✅ | `python-dotenv` integration |
-| Static File Safety | ✅ | Isolated `/static` directory |
-| Authentication | 🔜 | JWT implementation (Phase 2) |
-| Input Validation | ✅ | File type & size checks |
-
----
-
-## 🗺️ Roadmap
-
-### Phase 1: Core Scanner ✅ **COMPLETE**
-- [x] Image upload API
-- [x] Gemini topic detection
-- [x] Variable extraction
-- [x] Scan history storage
-
-### Phase 2: Visual Engine 🚧 **IN PROGRESS**
-- [ ] `/visualiser/generate` endpoint
-- [ ] `/visualiser/update` endpoint
-- [ ] Flame-based rendering
-- [ ] Dynamic parameter updates
-
-### Phase 3: AI Notes 📋 **PLANNED**
-- [ ] `/notes/generate` endpoint
-- [ ] Structured note generation
-- [ ] Resource extraction
-- [ ] Summary system
-
----
-
-## 🛠️ Tech Stack
-
-- **Framework:** FastAPI
-- **AI Model:** Google Gemini 2.0 Flash
-- **Language:** Python 3.8+
-- **Frontend:** Flutter (Mobile)
-- **Storage:** File System (Database-ready)
-
----
+- Make sure you're running from the `backend/` directory
+- Ensure your virtual environment is activated
+- Run `pip install -r requirements.txt` to install all dependencies

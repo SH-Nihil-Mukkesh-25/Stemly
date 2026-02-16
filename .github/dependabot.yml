@@ -1,0 +1,51 @@
+version: 2
+
+updates:
+  # Flutter / Dart (pub)
+  - package-ecosystem: pub
+    directory: /stemly_app
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - flutter-app
+    commit-message:
+      prefix: "chore(deps):"
+    reviewers: []
+    groups:
+      firebase:
+        patterns:
+          - "firebase_*"
+          - "cloud_firestore"
+
+  # Python (pip)
+  - package-ecosystem: pip
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - backend
+    commit-message:
+      prefix: "chore(deps):"
+    reviewers: []
+    groups:
+      langchain:
+        patterns:
+          - "langchain*"
+
+  # GitHub Actions
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - ci
+    commit-message:
+      prefix: "chore(ci):"

@@ -1,36 +1,50 @@
-# Stemly 🚀
+<p align="center">
+  <h1 align="center">Stemly</h1>
+  <p align="center"><strong>Scan. Analyze. Visualize. Study.</strong></p>
+  <p align="center">
+    An AI-powered STEM learning platform that transforms diagrams and problems into interactive simulations, study notes, and smart quizzes.
+  </p>
+</p>
 
-**Scan → Analyze → Visualize → Study**
+<p align="center">
+  <a href="../../actions/workflows/flutter-ci.yml"><img src="https://github.com/SH-Nihil-Mukkesh-25/Stemly/actions/workflows/flutter-ci.yml/badge.svg" alt="Flutter CI"></a>
+  <a href="../../actions/workflows/backend-ci.yml"><img src="https://github.com/SH-Nihil-Mukkesh-25/Stemly/actions/workflows/backend-ci.yml/badge.svg" alt="Backend CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License: MIT"></a>
+  <a href="../../graphs/contributors"><img src="https://img.shields.io/github/contributors/SH-Nihil-Mukkesh-25/Stemly" alt="Contributors"></a>
+  <a href="../../commits/master"><img src="https://img.shields.io/github/last-commit/SH-Nihil-Mukkesh-25/Stemly" alt="Last Commit"></a>
+</p>
 
-An AI-powered STEM learning platform that transforms diagrams and problems into interactive simulations, comprehensive study notes, and smart quizzes.
-
-[![GitHub](https://img.shields.io/badge/GitHub-Stemly-blue?logo=github)](https://github.com/Dakshin10/Stemly)
-[![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter)](https://flutter.dev)
-[![FastAPI](https://img.shields.io/badge/FastAPI-Python-009688?logo=fastapi)](https://fastapi.tiangolo.com)
-[![AI](https://img.shields.io/badge/AI-Multi--Model-purple?logo=openai)](https://x.ai)
+<p align="center">
+  <img src="https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter&logoColor=white" alt="Flutter 3.x">
+  <img src="https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white" alt="Python 3.10+">
+  <img src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white" alt="FastAPI">
+  <img src="https://img.shields.io/badge/Gemini_AI-4285F4?logo=google&logoColor=white" alt="Gemini AI">
+  <img src="https://img.shields.io/badge/Firebase-FFCA28?logo=firebase&logoColor=black" alt="Firebase">
+  <img src="https://img.shields.io/badge/MongoDB-47A248?logo=mongodb&logoColor=white" alt="MongoDB">
+</p>
 
 ---
 
-## 🌟 What is Stemly?
+## The Problem
 
-Stemly is an advanced educational application that bridges the gap between theoretical STEM concepts and visual understanding. By combining real-time computer vision, generative AI, and interactive physics simulations, we've created a unique **"Text-to-Simulation"** learning experience.
+Students struggle to visualize abstract STEM concepts from textbooks and static diagrams. Traditional tools offer either theory OR visuals, rarely both in an interactive, personalized way.
 
-**The Problem:** Students struggle to visualize abstract physics concepts from textbooks and static diagrams. Traditional learning tools offer either theory OR visuals, but rarely both in an interactive, personalized way.
+## Our Solution
 
-**Our Solution:** Scan any physics problem, and Stemly instantly generates:
+Scan any physics problem with your phone, and Stemly instantly generates:
 
-- **🎨 AI Visualiser**: Dynamic, parameter-driven simulations with real-time interactive controls.
-- **📚 AI Notes**: Comprehensive study companion with explanations, formulas, and curated resources.
-- **🧠 Smart Quizzes**: Auto-generated interactive quizzes to test your understanding immediately.
-- **💬 AI Tutor**: Chat with xAI (Grok), OpenAI (GPT-4o), or Groq (Llama 3) for personalized help.
+- **AI Visualiser** — Real-time, parameter-driven physics simulations with interactive sliders  
+- **AI Notes** — Comprehensive study notes with formulas, examples, and resources  
+- **Smart Quizzes** — Auto-generated MCQs to test understanding immediately  
+- **AI Tutor** — Chat with Gemini, GPT-4o, Grok, or Llama 3 for personalized help  
 
 ---
 
-## 📸 App Interface
+## Demo
 
 <div align="center">
 
-| Welcome | Scan & Loading | Main Interface | 
+| Welcome | Scan & Loading | Main Interface |
 |:---:|:---:|:---:|
 | <img src="docs/screenshots/welcome.png" width="200" alt="Welcome"/> | <img src="docs/screenshots/scan-loading.png" width="200" alt="Scanning"/> | <img src="docs/screenshots/home.png" width="200" alt="Home"/> |
 
@@ -42,131 +56,168 @@ Stemly is an advanced educational application that bridges the gap between theor
 
 ---
 
-## ✨ Core Features
+## Features
 
-### 1. 🎨 AI Visualiser - Not just a video
-Our visualizer is a **real-time physics engine**:
-- **Interactive Control**: Adjust velocity, angle, gravity, and resistance with sliders.
-- **Natural Language Control**: Ask *"What if gravity was 0?"* and watch the simulation update instantly.
-- **Real-time Graphs**: Live velocity-time, position-time, and acceleration-time plots.
-- **Supported Topics**: Projectile Motion, SHM, Optics, Kinematics, Circuits, Wave Motion.
+### AI Visualiser — Not Just a Video
 
-### 2. 📚 AI Notes - Study Smarter
+A real-time physics engine with:
+
+- Interactive control via sliders (velocity, angle, gravity, resistance)  
+- Natural language control — ask "What if gravity was 0?" and watch it update  
+- Live graphs (velocity-time, position-time, acceleration-time)  
+- 9+ simulations: Projectile Motion, SHM, Optics, Kinematics, Free Fall, and more  
+
+### AI Notes — Study Smarter
+
 Generated specifically for each scanned problem:
-- **Concept Breakdown**: Simple explanations of complex theories.
-- **Key Formulas**: With physical meanings and derivations.
-- **Step-by-Step Solutions**: Worked examples for similar problems.
-- **Curated Resources**: Best videos and articles from across the web.
 
-### 3. 🧠 Smart Quizzes
-- **Instant Generation**: Quizzes created instantly from your scanned content.
-- **Adaptive Difficulty**: Questions that adapt to your knowledge level.
-- **Detailed Explanations**: Learn why an answer is correct or incorrect.
+- Concept breakdowns with simple explanations  
+- Key formulas with physical meanings  
+- Step-by-step worked examples  
+- Curated resources from across the web  
 
-### 4. 🤖 Multi-Provider AI Support
-Stemly gives you choice. Connect your preferred AI model for the Chat & Tutor features:
-- **xAI (Grok-Beta)**: Access the latest models from xAI.
-- **OpenAI (GPT-4o)**: Industry-leading reasoning capabilities.
-- **OpenRouter**: Access to Gemini Flash, Claude, and more.
-- **Groq (Llama 3)**: Lightning-fast inference for instant responses.
+### Smart Quizzes
+
+- Instantly generated from your scanned content  
+- Multiple-choice with detailed explanations  
+- Score tracking and feedback  
+
+### Multi-Provider AI Tutor
+
+Choose your preferred AI model:
+
+- Google Gemini (default)  
+- xAI Grok  
+- OpenAI GPT-4o  
+- Groq Llama 3  
 
 ---
 
-## 🏗️ Technical Architecture
-
-### System Design
+## Architecture
 
 ```mermaid
 graph TD
-    User[Mobile App (Flutter)] -->|REST API| API[FastAPI Backend]
+    User[Flutter App] -->|REST API| API[FastAPI Backend]
     API -->|Auth| Firebase[Firebase Auth]
     API -->|Data| DB[(MongoDB)]
-    API -->|Vision| Gemini[Gemini Vision Pro]
-    API -->|Chat/Tutor| MultiLLM[xAI / OpenAI / Groq]
-    
-    subgraph "AI Services"
+    API -->|Vision + Text| Gemini[Google Gemini 2.5 Flash]
+
+    subgraph Client
+        User
+        OCR[Google ML Kit OCR]
+        VIS[Physics Engine]
+    end
+
+    subgraph AI
         Gemini
-        MultiLLM
     end
 ```
 
-### Technology Stack
+| Layer | Technology |
+| :--- | :--- |
+| Frontend | Flutter 3.x, Dart, Provider, CustomPaint (60 FPS rendering) |
+| Backend | FastAPI, Python 3.10+, Uvicorn, Pydantic |
+| AI | Google Gemini 2.5 Flash (vision + text + JSON mode) |
+| Database | MongoDB Atlas (async via Motor) |
+| Auth | Firebase Authentication (Google Sign-In, email/password) |
+| Deployment | Vercel (backend), APK/IPA (frontend) |
 
-**Frontend (Mobile)**
-- **Framework:** Flutter 3.x (Dart)
-- **Visuals:** CustomPainter (High-performance 60FPS rendering)
-- **State:** Provider & Riverpod
-- **Design:** Material 3 + Glassmorphism
-
-**Backend (Server)**
-- **Framework:** FastAPI (Python 3.10+)
-- **Server:** Uvicorn (ASGI)
-- **Validation:** Pydantic
-
-**AI & Cloud**
-- **Vision:** Google Gemini 1.5 Pro/Flash
-- **LLMs:** Integration with xAI API, OpenAI API, Groq API
-- **Database:** MongoDB Atlas
-- **Auth:** Firebase Authentication
+See `ARCHITECTURE.md` for detailed component diagrams, data flows, and the scan-to-simulation pipeline.
 
 ---
 
-## 🚀 Getting Started
+## Quick Start
 
 ### Prerequisites
-- **Flutter SDK**: 3.x+
-- **Python**: 3.10+
-- **API Keys**: 
-  - Google Gemini (for Vision/Scanning)
-  - Firebase Project (Auth)
-  - MongoDB Connection String
-  - *Optional*: xAI, OpenAI, or Groq API Key (for Chat features)
 
-### Installation
+- Flutter 3.x+ and Dart SDK 3.10.1+
+- Python 3.10+
+- API keys: Google Gemini + Firebase + MongoDB Atlas
 
-1. **Clone the Repository**
-   ```bash
-   git clone https://github.com/Dakshin10/Stemly.git
-   cd Stemly
-   ```
+### Setup
 
-2. **Backend Setup**
-   ```bash
-   cd backend
-   pip install -r requirements.txt
-   
-   # Create .env file with your credentials
-   # MONGO_URI=...
-   # GEMINI_API_KEY=...
-   # FIREBASE_CREDENTIALS_FILE=...
-   
-   uvicorn main:app --reload --host 0.0.0.0 --port 8080
-   ```
+```bash
+git clone https://github.com/SH-Nihil-Mukkesh-25/Stemly.git
+cd Stemly
 
-3. **Frontend Setup**
-   ```bash
-   cd stemly_app
-   flutter pub get
-   flutter run
-   ```
+# Backend
+cd backend
+python -m venv .venv && source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env   # Fill in your API keys
+uvicorn main:app --reload
+
+# Flutter (in a new terminal)
+cd stemly_app
+flutter pub get
+flutter run
+```
+
+For detailed instructions (platform-specific, Docker, etc.), see the Setup Guide.
 
 ---
 
-## 👥 Team Mugiwara Coders
+## Documentation
 
-**Stemly** was built with ❤️ by a team of passionate CS students from Amrita Vishwa Vidyapeetham, Coimbatore.
+| Document | Description |
+| :--- | :--- |
+| **Architecture** | System design, component diagrams, data flows |
+| **API Reference** | Complete REST API documentation with examples |
+| **Setup Guide** | Getting API keys, platform setup, Docker |
+| **Development Guide** | Git workflow, testing, debugging, adding simulations |
+| **Contributing** | How to contribute, code style, PR process |
+| **FAQ** | Common questions answered |
+| **Roadmap** | Where Stemly is headed |
+
+---
+
+## Roadmap
+
+See `docs/ROADMAP.md` for the full roadmap.
+
+- **Next**: Wave simulations, circuit builder, chemistry support, offline mode
+- **Later**: Web deployment, multi-language support, classroom mode, AR features
+- **Vote**: React on issues to prioritize features
+
+---
+
+## Contributing
+
+We welcome contributions from everyone — especially students and first-time open-source contributors!
+
+1. Read the **Contributing Guide**
+2. Look for `good first issue` labels
+3. Set up your environment with the **Setup Guide**
+4. Pick an issue and submit a PR
+
+---
+
+## Team
+
+Stemly was built by **Team Mugiwara Coders** — CS students from Amrita Vishwa Vidyapeetham, Coimbatore.
 
 | Name | Role | GitHub |
-|------|------|--------|
-| **P Dakshin Raj** | Frontend & Flutter Lead | [@Dakshin10](https://github.com/Dakshin10) |
-| **SH Nihil Mukkesh** | Backend & AI Lead | [@SH-Nihil-Mukkesh-25](https://github.com/SH-Nihil-Mukkesh-25) |
-| **SHRE RAAM P J** | Machine Learning | [@SHRE-RAAM-P-J](https://github.com/SHRE-RAAM-P-J) |
-| **Vibin Ragav S** | UI/UX & Frontend | [@VibinR-code](https://github.com/VibinR-code) |
+| :--- | :--- | :--- |
+| P Dakshin Raj | Frontend & Flutter Lead | @Dakshin10 |
+| SH Nihil Mukkesh | Backend & AI Lead | @SH-Nihil-Mukkesh-25 |
+| SHRE RAAM P J | Content & Ideation | @SHRE-RAAM-P-J |
+| Vibin Ragav S | Testing | @VibinR-code |
+
+### Contributors
+
+<a href="../../graphs/contributors"> <img src="https://contrib.rocks/image?repo=SH-Nihil-Mukkesh-25/Stemly" /> </a>
 
 ---
 
-<div align="center">
+## Community
 
-**Transforming STEM education, one scan at a time.** 🚀
+- **Questions?** Open a discussion or ask an issue
+- **Found a bug?** Report it
+- **Have an idea?** Request a feature
+- **Security issue?** See `SECURITY.md`
 
-</div>
+## License
+
+Stemly is open-source under the MIT License.
+
+<div align="center"> <strong>Transforming STEM education, one scan at a time.</strong> <br><br> <a href="../../stargazers">Star this repo</a> if you find it useful! </div>

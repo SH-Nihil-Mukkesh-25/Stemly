@@ -1,0 +1,41 @@
+flutter-app:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "stemly_app/**"
+
+backend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "backend/**"
+
+docs:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/*.md"
+          - "docs/**"
+
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "backend/requirements.txt"
+          - "stemly_app/pubspec.yaml"
+          - "stemly_app/pubspec.lock"
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/**"
+
+ui:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "stemly_app/lib/screens/**"
+          - "stemly_app/lib/widgets/**"
+          - "stemly_app/lib/theme/**"
+          - "stemly_app/assets/**"
+
+ai:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "backend/services/**"
+          - "stemly_app/lib/visualiser/**"

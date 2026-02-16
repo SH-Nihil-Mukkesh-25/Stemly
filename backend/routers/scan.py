@@ -1,13 +1,9 @@
-# backend/routers/scan.py
-
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, Header, Form
-from openai import AuthenticationError
 
 from auth.auth_middleware import require_firebase_user
 from database.history_model import get_user_history, save_scan_history
 from services.ai_detector import detect_topic
 from services.scan_service import save_scan
-from config import FALLBACK_GROQ_API_KEY
 
 router = APIRouter(
     dependencies=[Depends(require_firebase_user)],

@@ -4,7 +4,7 @@ import requests
 import time
 from typing import List, Optional
 from pydantic import BaseModel
-from config import GEMINI_API_KEY, GEMINI_MODEL
+from config import GEMINI_API_KEY, GEMINI_FALLBACK_API_KEY, GEMINI_MODEL
 
 
 class QuizQuestionModel(BaseModel):
@@ -249,7 +249,7 @@ def clean_json_output(text: str):
     # 1. Try direct parse
     try:
         return json.loads(text)
-    except:
+    except json.JSONDecodeError:
         pass
         
     # 2. Try Regex for code blocks
@@ -257,7 +257,7 @@ def clean_json_output(text: str):
     if match:
         try:
              return json.loads(match.group(1))
-        except:
+        except json.JSONDecodeError:
             pass
 
     # 3. Try finding first { and last }
@@ -265,7 +265,7 @@ def clean_json_output(text: str):
     if match:
         try:
             return json.loads(match.group(1))
-        except:
+        except json.JSONDecodeError:
             pass
             
     # 4. Try finding first [ and last ]
@@ -273,7 +273,7 @@ def clean_json_output(text: str):
     if match:
         try:
             return json.loads(match.group(1))
-        except:
+        except json.JSONDecodeError:
             pass
     
     print(f"⚠ Failed to parse JSON from: {text[:300]}...")
@@ -364,12 +364,15 @@ async def generate_quiz_with_ai(topic: str, num_questions: int = 5, api_key: str
     
     # Use provided key or fall back to config
     gemini_key = api_key if (api_key and api_key.startswith("AIza")) else GEMINI_API_KEY
-    
-    SYSTEM_FALLBACK_KEY = "AIzaSyBek9KwVGRNicmxCNO1Zv4ubgevRUU4LZQ"
+    fallback_key = GEMINI_FALLBACK_API_KEY if (GEMINI_FALLBACK_API_KEY and GEMINI_FALLBACK_API_KEY.startswith("AIza")) else None
 
     if not gemini_key:
-        print("⚠ No Gemini API key. Attempting System Fallback Key.")
-        gemini_key = SYSTEM_FALLBACK_KEY
+        if fallback_key:
+            print("⚠ No primary Gemini API key. Using fallback key from environment.")
+            gemini_key = fallback_key
+        else:
+            print("⚠ No Gemini API key configured.")
+            return get_fallback_quiz(topic, num_questions)
     
     full_prompt = ADVANCED_QUIZ_PROMPT.format(topic=topic.strip(), num_questions=num_questions)
     
@@ -386,8 +389,7 @@ async def generate_quiz_with_ai(topic: str, num_questions: int = 5, api_key: str
         }
     }
 
-    # Retry logic with exponential backoff & Key Fallback
-    SYSTEM_FALLBACK_KEY = "AIzaSyBek9KwVGRNicmxCNO1Zv4ubgevRUU4LZQ"
+    # Retry logic with exponential backoff & key fallback
     current_key = gemini_key
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={current_key}"
 
@@ -400,21 +402,21 @@ async def generate_quiz_with_ai(topic: str, num_questions: int = 5, api_key: str
             
             # Handle Bad Key (400) or Permission (403) or Auth (401)
             if response.status_code in [400, 401, 403]:
-                if current_key != SYSTEM_FALLBACK_KEY:
-                     print(f"⚠ Gemini Key Error ({response.status_code}). Switching to System Fallback Key...")
-                     current_key = SYSTEM_FALLBACK_KEY
+                if fallback_key and current_key != fallback_key:
+                     print(f"⚠ Gemini key error ({response.status_code}). Switching to fallback key from environment...")
+                     current_key = fallback_key
                      url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={current_key}"
                      continue # Immediate retry with new key
                 else:
-                     print(f"❌ Fallback Key also failed ({response.status_code}).")
+                     print(f"❌ Available Gemini key failed ({response.status_code}) and no alternate fallback key is configured.")
                      break # Stop retrying
 
             # Handle rate limiting with retry AND Key Switch
             if response.status_code == 429:
-                print(f"⏳ Rate limited (429).")
-                if current_key != SYSTEM_FALLBACK_KEY:
-                    print("🔄 Switching to System Fallback Key for Rate Limit...")
-                    current_key = SYSTEM_FALLBACK_KEY
+                print("⏳ Rate limited (429).")
+                if fallback_key and current_key != fallback_key:
+                    print("🔄 Switching to fallback key from environment for rate limit handling...")
+                    current_key = fallback_key
                     url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={current_key}"
                     continue # Immediate retry with new key
 

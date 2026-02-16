@@ -1,8 +1,12 @@
 import requests
 import json
+import os
 
 # Test OpenRouter API - Quiz Generation
-OPENROUTER_API_KEY = "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"
+from dotenv import load_dotenv
+
+load_dotenv()
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 url = "https://openrouter.ai/api/v1/chat/completions"
 
 headers = {

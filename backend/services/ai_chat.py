@@ -4,10 +4,9 @@ Handles both visualization control (JSON) and concept explanation (text).
 Uses Google Gemini API.
 """
 import json
-import re
 import requests
 import time
-from config import GEMINI_API_KEY, GEMINI_MODEL
+from config import GEMINI_API_KEY, GEMINI_FALLBACK_API_KEY, GEMINI_MODEL
 
 
 VISUALISER_CHAT_PROMPT = """You are an Intelligent Visualization Assistant embedded inside an educational app.
@@ -87,6 +86,8 @@ async def process_visualiser_chat(
     
     # Use provided key or fall back to config
     gemini_key = api_key if (api_key and api_key.startswith("AIza")) else GEMINI_API_KEY
+    if not gemini_key and GEMINI_FALLBACK_API_KEY and GEMINI_FALLBACK_API_KEY.startswith("AIza"):
+        gemini_key = GEMINI_FALLBACK_API_KEY
     
     if not gemini_key:
         return {"type": "chat", "message": "AI not configured. Please add your Gemini API key."}
@@ -123,7 +124,7 @@ async def process_visualiser_chat(
     
     max_retries = 3
     current_key = gemini_key
-    SYSTEM_FALLBACK_KEY = "AIzaSyBek9KwVGRNicmxCNO1Zv4ubgevRUU4LZQ"
+    fallback_key = GEMINI_FALLBACK_API_KEY if (GEMINI_FALLBACK_API_KEY and GEMINI_FALLBACK_API_KEY.startswith("AIza")) else None
 
     for attempt in range(max_retries):
         try:
@@ -137,20 +138,20 @@ async def process_visualiser_chat(
             # Key/Permission Error Fallback
             if response.status_code in [400, 401, 403]:
                 print(f"⚠ Gemini Key Error ({response.status_code}).")
-                if current_key != SYSTEM_FALLBACK_KEY:
-                    print("🔄 Switching to System Fallback Key and retrying...")
-                    current_key = SYSTEM_FALLBACK_KEY
+                if fallback_key and current_key != fallback_key:
+                    print("🔄 Switching to fallback key from environment and retrying...")
+                    current_key = fallback_key
                     continue
                 else:
-                    print("❌ Fallback Key also failed.")
+                    print("❌ Available Gemini key failed and no alternate fallback key is configured.")
                     break
 
             # Handle rate limiting with retry AND Key Switch
             if response.status_code == 429:
-                print(f"⏳ Rate limited (429).")
-                if current_key != SYSTEM_FALLBACK_KEY:
-                    print("🔄 Switching to System Fallback Key for Rate Limit...")
-                    current_key = SYSTEM_FALLBACK_KEY
+                print("⏳ Rate limited (429).")
+                if fallback_key and current_key != fallback_key:
+                    print("🔄 Switching to fallback key from environment for rate limit handling...")
+                    current_key = fallback_key
                     continue # Immediate retry with new key
 
                 wait_time = (2 ** attempt) + 1

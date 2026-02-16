@@ -4,7 +4,7 @@ import requests
 import time
 from typing import Optional
 from fastapi.concurrency import run_in_threadpool
-from config import GEMINI_API_KEY, GEMINI_MODEL
+from config import GEMINI_API_KEY, GEMINI_FALLBACK_API_KEY, GEMINI_MODEL
 from models.notes_models import NotesResponse
 
 
@@ -65,11 +65,15 @@ def clean_json_output(text: str):
 def _call_gemini_api_sync(prompt: str, system_prompt: str = "", max_tokens: int = 1000, timeout: int = 120, api_key: str = None, json_mode: bool = False):
     """Blocking call to Google Gemini API with exponential backoff retry."""
     key = api_key or GEMINI_API_KEY
-    SYSTEM_FALLBACK_KEY = "AIzaSyBek9KwVGRNicmxCNO1Zv4ubgevRUU4LZQ"
+    fallback_key = GEMINI_FALLBACK_API_KEY if (GEMINI_FALLBACK_API_KEY and GEMINI_FALLBACK_API_KEY.startswith("AIza")) else None
 
     if not key:
-        print("⚠ No Gemini API key configured. Using System Fallback.")
-        key = SYSTEM_FALLBACK_KEY
+        if fallback_key:
+            print("⚠ No primary Gemini API key configured. Using fallback key from environment.")
+            key = fallback_key
+        else:
+            print("⚠ No Gemini API key configured.")
+            return None
     
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={key}"
     
@@ -88,13 +92,9 @@ def _call_gemini_api_sync(prompt: str, system_prompt: str = "", max_tokens: int 
 
     if json_mode:
         payload["generationConfig"]["response_mime_type"] = "application/json"
-
-    if json_mode:
-        payload["generationConfig"]["response_mime_type"] = "application/json"
     
     max_retries = 3
     current_key = key
-    SYSTEM_FALLBACK_KEY = "AIzaSyBek9KwVGRNicmxCNO1Zv4ubgevRUU4LZQ"
     
     for attempt in range(max_retries):
         try:
@@ -107,20 +107,20 @@ def _call_gemini_api_sync(prompt: str, system_prompt: str = "", max_tokens: int 
             # Key/Permission Error Fallback
             if response.status_code in [400, 401, 403]:
                 print(f"⚠ Gemini Key Error ({response.status_code}).")
-                if current_key != SYSTEM_FALLBACK_KEY:
-                    print("🔄 Switching to System Fallback Key and retrying...")
-                    current_key = SYSTEM_FALLBACK_KEY
+                if fallback_key and current_key != fallback_key:
+                    print("🔄 Switching to fallback key from environment and retrying...")
+                    current_key = fallback_key
                     continue
                 else:
-                    print("❌ Fallback Key also failed.")
+                    print("❌ Available Gemini key failed and no alternate fallback key is configured.")
                     break
 
             # Handle rate limiting with retry AND Key Switch
             if response.status_code == 429:
-                print(f"⏳ Rate limited (429).")
-                if current_key != SYSTEM_FALLBACK_KEY:
-                    print("🔄 Switching to System Fallback Key for Rate Limit...")
-                    current_key = SYSTEM_FALLBACK_KEY
+                print("⏳ Rate limited (429).")
+                if fallback_key and current_key != fallback_key:
+                    print("🔄 Switching to fallback key from environment for rate limit handling...")
+                    current_key = fallback_key
                     continue # Immediate retry with new key
                 
                 wait_time = (2 ** attempt) + 1
@@ -297,7 +297,7 @@ async def follow_up_notes(topic: str, previous_notes: dict, user_prompt: str, ap
             if isinstance(parsed.get('summary'), str):
                  parsed['summary'] = [parsed['summary']]
             return NotesResponse(**parsed)
-    except:
+    except Exception:
         pass
         
     return NotesResponse(explanation="AI Error", variable_breakdown={}, formulas=[], example="", mistakes=[], practice_questions=[], summary=[], resources=[])

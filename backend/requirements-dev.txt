@@ -1,0 +1,20 @@
+# Development & testing tools for Stemly backend
+# Install with: pip install -r requirements-dev.txt
+
+# Testing
+pytest>=7.0
+pytest-cov>=4.0
+pytest-asyncio>=0.21
+httpx>=0.24                # Async test client for FastAPI
+
+# Formatting
+black>=23.0
+
+# Linting
+flake8>=6.0
+
+# Type checking
+mypy>=1.0
+
+# Git hooks
+pre-commit>=3.0

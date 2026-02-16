@@ -1,37 +1,14 @@
-# # backend/database/db.py
-
-# from motor.motor_asyncio import AsyncIOMotorClient
-# from pymongo.server_api import ServerApi
-# import os
-# from dotenv import load_dotenv
-
-# load_dotenv()
-
-# MONGO_URI = os.getenv("MONGO_URI")
-
-# # Make MongoDB optional for development/testing
-# if not MONGO_URI:
-#     print("⚠ MONGO_URI not set in .env - database features will be disabled")
-#     client = None
-#     db = None
-# else:
-#     client = AsyncIOMotorClient(MONGO_URI, server_api=ServerApi("1"))
-#     db = client["stemly_db"]
-
-
-# backend/database/db.py
-# backend/database/db.py
-
-from motor.motor_asyncio import AsyncIOMotorClient
-from pymongo.server_api import ServerApi
 import os
-from dotenv import load_dotenv
 
 import certifi
+from dotenv import load_dotenv
+from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo.server_api import ServerApi
 
 load_dotenv()
 
 MONGO_URI = os.getenv("MONGO_URI")
+MONGO_ALLOW_INVALID_CERTS = os.getenv("MONGO_ALLOW_INVALID_CERTS", "false").lower() == "true"
 
 if not MONGO_URI:
     print("⚠ MONGO_URI not set in .env - database disabled")
@@ -39,8 +16,8 @@ if not MONGO_URI:
     db = None
 else:
     try:
-        # Use certifi for secure SSL connection, but allow invalid certs for now to fix handshake error
-        print("⚠ MongoDB: Allowing invalid certificates (Development Mode Fix)")
+        if MONGO_ALLOW_INVALID_CERTS:
+            print("⚠ MongoDB running with invalid TLS certs allowed (development only).")
         client = AsyncIOMotorClient(
             MONGO_URI,
             tlsCAFile=certifi.where(),
@@ -48,11 +25,10 @@ else:
             connectTimeoutMS=10000,
             socketTimeoutMS=20000,
             retryWrites=True,
-            tlsAllowInvalidCertificates=True  # ENABLED to fix TLSV1_ALERT_INTERNAL_ERROR
+            tlsAllowInvalidCertificates=MONGO_ALLOW_INVALID_CERTS,
         )
         db = client["stemly_db"]
     except Exception as e:
-        print(f"❌ Critical Error initializing MongoDB: {e}")
+        print(f"❌ Critical error initializing MongoDB: {e}")
         client = None
         db = None
-

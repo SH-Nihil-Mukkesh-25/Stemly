@@ -1,0 +1,52 @@
+version: "3.8"
+
+services:
+  # ---------------------------------------------------------------------------
+  # MongoDB — local development database
+  # ---------------------------------------------------------------------------
+  mongodb:
+    image: mongo:7
+    container_name: stemly-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: stemly
+      MONGO_INITDB_ROOT_PASSWORD: stemly_dev
+      MONGO_INITDB_DATABASE: stemly
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # FastAPI backend
+  # ---------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: stemly-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    environment:
+      # Override MONGO_URI to point to the container
+      MONGO_URI: mongodb://stemly:stemly_dev@mongodb:27017/stemly?authSource=admin
+    volumes:
+      # Mount source code for hot reload
+      - ./backend:/app
+      # Prevent overwriting container's venv
+      - /app/.venv
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  mongo-data:

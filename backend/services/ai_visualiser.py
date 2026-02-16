@@ -19,7 +19,7 @@ def clean_json_output(text: str):
     text = text.strip()
     try:
         return json.loads(text)
-    except:
+    except json.JSONDecodeError:
         pass
     
     # Try to find JSON object
@@ -27,7 +27,7 @@ def clean_json_output(text: str):
     if match:
         try:
             return json.loads(match.group())
-        except:
+        except json.JSONDecodeError:
             pass
     return None
 

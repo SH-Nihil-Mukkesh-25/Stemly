@@ -10,6 +10,7 @@ load_dotenv()
 
 # Gemini API Configuration
 GEMINI_API_KEY = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+GEMINI_FALLBACK_API_KEY = os.getenv("GEMINI_FALLBACK_API_KEY")
 GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 GEMINI_MODEL = "gemini-2.5-flash"  # Latest Gemini 2.5 Flash model
 GEMINI_VISION_MODEL = "gemini-2.5-flash"  # Same model handles vision

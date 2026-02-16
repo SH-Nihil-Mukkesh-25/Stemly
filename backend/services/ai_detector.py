@@ -4,7 +4,7 @@ import re
 import base64
 import time
 from typing import List, Tuple
-from config import GEMINI_API_KEY, get_gemini_url, GEMINI_MODEL
+from config import GEMINI_API_KEY, GEMINI_FALLBACK_API_KEY, GEMINI_MODEL
 
 
 def _gemini_request_with_retry(url: str, payload: dict, timeout: int = 30, max_retries: int = 3):
@@ -86,7 +86,7 @@ def extract_json_from_text(text: str) -> dict:
     # Try direct parse
     try:
         return json.loads(text)
-    except:
+    except json.JSONDecodeError:
         pass
     
     # Find JSON object (GREEDY match for nested objects)
@@ -95,13 +95,11 @@ def extract_json_from_text(text: str) -> dict:
     if match:
         try:
             return json.loads(match.group())
-        except:
+        except json.JSONDecodeError:
             pass
     
     return None
 
-
-SYSTEM_FALLBACK_KEY = "AIzaSyBek9KwVGRNicmxCNO1Zv4ubgevRUU4LZQ"
 
 async def detect_topic(ocr_text: str, image_path: str = None, api_key: str = None) -> Tuple[str, List[str]]:
     """
@@ -113,13 +111,16 @@ async def detect_topic(ocr_text: str, image_path: str = None, api_key: str = Non
     
     # Use provided key or fall back to config
     gemini_key = api_key if (api_key and api_key.startswith("AIza")) else GEMINI_API_KEY
-    
+    fallback_key = GEMINI_FALLBACK_API_KEY if (GEMINI_FALLBACK_API_KEY and GEMINI_FALLBACK_API_KEY.startswith("AIza")) else None
+
     if not gemini_key:
-        # Try fallback if even config is missing info
-        gemini_key = SYSTEM_FALLBACK_KEY
+        gemini_key = fallback_key
     
     # 1. Try Keyword fallback first (Fastest)
     keyword_topic = detect_topic_from_keywords(ocr_text) if ocr_text else "Unknown"
+
+    if not gemini_key:
+        return keyword_topic, []
     
     # 2. Determine if we skip straight to Vision (Sparse text)
     skip_text_model = not ocr_text or len(ocr_text.strip()) < 10
@@ -134,12 +135,14 @@ async def detect_topic(ocr_text: str, image_path: str = None, api_key: str = Non
             topic, variables = await _query_gemini_text(gemini_key, ocr_text)
         except Exception as e:
             print(f"⚠ Gemini text error with primary key: {e}")
-            # FALBACK RETRY
-            try:
-                print("🔄 Retrying Text Model with System Fallback Key...")
-                topic, variables = await _query_gemini_text(SYSTEM_FALLBACK_KEY, ocr_text)
-            except Exception as e2:
-                print(f"❌ Gemini text fallback failed: {e2}")
+            if fallback_key and gemini_key != fallback_key:
+                try:
+                    print("🔄 Retrying Text Model with fallback key from environment...")
+                    topic, variables = await _query_gemini_text(fallback_key, ocr_text)
+                except Exception as e2:
+                    print(f"❌ Gemini text fallback failed: {e2}")
+                    topic = "Unknown"
+            else:
                 topic = "Unknown"
             
 
@@ -152,12 +155,12 @@ async def detect_topic(ocr_text: str, image_path: str = None, api_key: str = Non
             topic, variables = await _query_gemini_vision(gemini_key, image_path, ocr_text)
         except Exception as e:
             print(f"❌ Gemini vision error with primary key: {e}")
-            # FALLBACK RETRY
-            try:
-                print("🔄 Retrying Vision Model with System Fallback Key...")
-                topic, variables = await _query_gemini_vision(SYSTEM_FALLBACK_KEY, image_path, ocr_text)
-            except Exception as e2:
-                 print(f"❌ Gemini vision fallback failed: {e2}")
+            if fallback_key and gemini_key != fallback_key:
+                try:
+                    print("🔄 Retrying Vision Model with fallback key from environment...")
+                    topic, variables = await _query_gemini_vision(fallback_key, image_path, ocr_text)
+                except Exception as e2:
+                    print(f"❌ Gemini vision fallback failed: {e2}")
 
             
     # Final Fallback

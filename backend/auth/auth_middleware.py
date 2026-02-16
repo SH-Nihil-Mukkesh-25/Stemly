@@ -1,10 +1,12 @@
+import os
+
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from auth.firebase import verify_firebase_token
-from database.user_model import record_user_login
 
 http_bearer = HTTPBearer(auto_error=False)
+ALLOW_DEV_AUTH_BYPASS = os.getenv("ALLOW_DEV_AUTH_BYPASS", "false").lower() == "true"
 
 
 async def require_firebase_user(
@@ -23,11 +25,10 @@ async def require_firebase_user(
 
     id_token = credentials.credentials
     
-    # Debug print to see what we are receiving
-    print(f"DEBUG: Received token: '{id_token}'")
+    print(f"DEBUG: Received bearer token prefix: {id_token[:8]}...")
 
     # --- DEV BYPASS FOR TESTING ---
-    if id_token.strip() == "test-token":
+    if ALLOW_DEV_AUTH_BYPASS and id_token.strip() == "test-token":
         print("⚠ USING DEV BYPASS TOKEN")
         mock_user = {
             "uid": "test-user-123",

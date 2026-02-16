@@ -176,7 +176,6 @@ def generate_interactive_template(payload: VisualiserGenerateRequest):
     # 6. PHYSICS: MECHANICS (Specific & Generic)
     # =================================================
     # Projectile
-    is_projectile = False
     # 5. PHYSICS: PROJECTILE MOTION
     # Check for specific "Projectile" OR "Kinematics with Angles"
     if "projectile" in topic or \
@@ -237,7 +236,7 @@ def generate_interactive_template(payload: VisualiserGenerateRequest):
     # =================================================
     # 9. FALLBACK
     # =================================================
-    print(f"DEBUG VISUALISER: No match found. Returning fallback.")
+    print("DEBUG VISUALISER: No match found. Returning fallback.")
     return {
         "template": {
             "templateId": "general_topic",
@@ -284,6 +283,10 @@ def _diagram_template(title, primitives):
             "parameters": {} # No sliders for static diagrams (yet)
         }
     }
+
+def _molecule_template(title, primitives):
+    """Helper alias for chemistry molecule diagram templates."""
+    return _diagram_template(title, primitives)
 
 @router.post("/chat")
 async def visualiser_chat(payload: VisualiserChatRequest, request: Request, x_ai_api_key: str = Header(None, alias="X-AI-API-Key")):

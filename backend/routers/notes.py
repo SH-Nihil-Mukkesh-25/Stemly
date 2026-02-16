@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Header
-from openai import AuthenticationError
 
 from auth.auth_middleware import require_firebase_user
+from config import FALLBACK_GROQ_API_KEY
 from database.notes_model import save_notes_entry
-from models.notes_models import NotesFollowUpRequest, NotesGenerateRequest, NotesResponse
+from models.notes_models import NotesFollowUpRequest, NotesGenerateRequest
 from services.ai_notes import follow_up_notes, generate_notes
 from utils.file_utils import resolve_scan_path, scan_path_to_relative
 
@@ -18,8 +18,6 @@ router = APIRouter(
 # 1. Generate Full Notes
 # -----------------------------------------
 
-from config import FALLBACK_GROQ_API_KEY
-
 @router.post("/generate")
 async def generate_notes_route(
     req: NotesGenerateRequest, 
@@ -29,10 +27,6 @@ async def generate_notes_route(
 ):
     # Use X-AI-API-Key first (Flutter), then legacy header, then env fallback
     api_key_to_use = x_ai_api_key or x_groq_api_key or FALLBACK_GROQ_API_KEY
-    
-    # API Key check is removed for Local AI
-    # if not api_key_to_use:
-    #     raise HTTPException(status_code=400, detail="Missing X-Groq-Api-Key and no fallback key found.")
 
     local_path = None
     relative_path = None
@@ -40,7 +34,7 @@ async def generate_notes_route(
         try:
             local_path = resolve_scan_path(req.image_path)
             relative_path = scan_path_to_relative(local_path)
-        except ValueError as exc:
+        except ValueError:
             pass # Be lenient for invalid paths
             local_path = None
             relative_path = None
@@ -65,8 +59,6 @@ async def generate_notes_route(
         # Wrap response to match Flutter's expected format
         return {"notes": notes.dict()}
 
-    except AuthenticationError:
-        raise HTTPException(status_code=401, detail="Invalid Groq API Key")
     except Exception as e:
         print("❌ Error in /notes/generate:", e)
         raise HTTPException(status_code=500, detail="Failed to generate notes.")
@@ -86,9 +78,6 @@ async def follow_up_notes_route(
 ):
     # Use X-AI-API-Key first (Flutter), then legacy header, then env fallback
     api_key_to_use = x_ai_api_key or x_groq_api_key or FALLBACK_GROQ_API_KEY
-    
-    # if not api_key_to_use:
-    #     raise HTTPException(status_code=400, detail="Missing X-Groq-Api-Key.")
 
     try:
         image_reference = None

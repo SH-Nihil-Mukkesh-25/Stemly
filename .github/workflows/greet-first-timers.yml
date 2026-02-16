@@ -1,0 +1,41 @@
+name: Welcome First-Time Contributors
+
+on:
+  issues:
+    types: [opened]
+  pull_request_target:
+    types: [opened]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  greet:
+    name: Greet first-timers
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/first-interaction@v1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+          issue-message: |
+            Welcome to Stemly! Thanks for opening your first issue here.
+
+            We're a student-built project and we appreciate every contribution — whether it's a bug report, feature idea, or question. A maintainer will take a look soon.
+
+            In the meantime:
+            - Make sure you've filled out the issue template completely
+            - Check our [Contributing Guide](CONTRIBUTING.md) if you'd like to help fix this
+            - Feel free to ask questions — no question is too basic!
+
+          pr-message: |
+            Welcome to Stemly! Thanks for opening your first pull request — that's awesome!
+
+            A maintainer will review your changes soon. While you wait:
+            - Make sure the PR description and checklist are filled out
+            - Check that CI checks are passing (if any fail, don't worry — we'll help you fix them)
+            - See our [Contributing Guide](CONTRIBUTING.md) for code style and commit conventions
+
+            We're excited to have you contribute to making STEM education more accessible!

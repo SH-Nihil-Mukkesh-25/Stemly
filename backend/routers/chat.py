@@ -1,13 +1,12 @@
-from fastapi import APIRouter, Depends, Request, Header, HTTPException
+from fastapi import APIRouter, Depends, Request, Header
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 from auth.auth_middleware import require_firebase_user
-from config import OLLAMA_BASE_URL, LOCAL_MODEL, FALLBACK_GROQ_API_KEY
+from config import OLLAMA_BASE_URL, LOCAL_MODEL
 from pydantic import Field
 import json
 import re
 import requests
-from utils.file_utils import resolve_scan_path
 
 router = APIRouter(
     prefix="/chat",
@@ -43,7 +42,7 @@ def clean_json_output(text: str):
     text = text.strip()
     try:
         return json.loads(text)
-    except:
+    except json.JSONDecodeError:
         return None
 
 
