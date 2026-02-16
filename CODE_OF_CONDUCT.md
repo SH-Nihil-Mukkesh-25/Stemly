@@ -43,7 +43,7 @@ This Code of Conduct applies within all community spaces, including the GitHub r
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the project maintainers responsible for enforcement at:
 
-- **Email**: [stemly.team@gmail.com](mailto:stemly.team@gmail.com)
+- **Email**: [mukkeshnihil@gmail.com](mailto:mukkeshnihil@gmail.com)
 
 All complaints will be reviewed and investigated promptly and fairly. All project maintainers are obligated to respect the privacy and security of the reporter of any incident.
 
