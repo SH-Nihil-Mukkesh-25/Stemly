@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'dart:io';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -25,7 +27,17 @@ const String _apiBaseUrl = String.fromEnvironment(
 
 class FirebaseAuthService extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ["email"]);
+  
+  // TODO: [NEW ACCOUNT SETUP] Replace with your Web Client ID from Firebase Console
+  // Go to: Authentication -> Sign-in method -> Google -> Web SDK configuration
+  // It looks like: "123456789-abcdef...apps.googleusercontent.com"
+  static const String _googleClientId = "75140432972-ua4tbeh27rbejd55q03htq91dt2ig1bd.apps.googleusercontent.com";
+
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: ["email"],
+    // Windows and Web require a specific clientId
+    clientId: kIsWeb || Platform.isWindows ? _googleClientId : null,
+  );
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
   StreamSubscription<User?>? _authSubscription;

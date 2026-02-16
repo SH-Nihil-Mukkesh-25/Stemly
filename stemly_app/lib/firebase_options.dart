@@ -7,13 +7,13 @@ import 'package:flutter/foundation.dart'
 /// Default [FirebaseOptions] for use with your Firebase apps.
 ///
 /// Example:
-/// ```dart
+/// dart
 /// import 'firebase_options.dart';
 /// // ...
 /// await Firebase.initializeApp(
 ///   options: DefaultFirebaseOptions.currentPlatform,
 /// );
-/// ```
+/// 
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
@@ -45,24 +45,6 @@ class DefaultFirebaseOptions {
     appId: '1:75140432972:web:abb60f9a3fd960cea960e9',
     messagingSenderId: '75140432972',
     projectId: 'stemly-929a6',
-    authDomain: 'stemly-929a6.firebaseapp.com',
-    storageBucket: 'stemly-929a6.firebasestorage.app',
-    measurementId: 'G-RGELSDH9VQ',
-  );
-
-  static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyDNoxzV5V65plojiKrGprlt4S3BOgxHksQ',
-    appId: '1:75140432972:android:0c3cef77d2dc0fb1a960e9',
-    messagingSenderId: '75140432972',
-    projectId: 'stemly-929a6',
-    storageBucket: 'stemly-929a6.firebasestorage.app',
-  );
-
-  static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyCy22m9tzRzFoEN-hi_xPkEtuk8srmqN24',
-    appId: '1:75140432972:ios:a5ccfa60db07597ba960e9',
-    messagingSenderId: '75140432972',
-    projectId: 'stemly-929a6',
     storageBucket: 'stemly-929a6.firebasestorage.app',
     iosBundleId: 'com.example.stemlyApp',
   );
@@ -86,4 +68,20 @@ class DefaultFirebaseOptions {
     measurementId: 'G-RB5W9CD1G6',
   );
 
+  static const FirebaseOptions android = FirebaseOptions(
+    apiKey: 'AIzaSyDNoxzV5V65plojiKrGprlt4S3BOgxHksQ',
+    appId: '1:75140432972:android:56391fde45e9e67ba960e9',
+    messagingSenderId: '75140432972',
+    projectId: 'stemly-929a6',
+    storageBucket: 'stemly-929a6.firebasestorage.app',
+  );
+
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyCy22m9tzRzFoEN-hi_xPkEtuk8srmqN24',
+    appId: '1:75140432972:ios:a5ccfa60db07597ba960e9',
+    messagingSenderId: '75140432972',
+    projectId: 'stemly-929a6',
+    storageBucket: 'stemly-929a6.firebasestorage.app',
+    iosBundleId: 'com.example.stemlyApp',
+  );
 }
