@@ -53,7 +53,7 @@ Before diving in, we recommend:
 
 ```bash
 # Clone the repo
-git clone https://github.com/<your-org>/stemly.git
+git clone https://github.com/SH-Nihil-Mukkesh-25/Stemly.git
 cd stemly/stemly_app
 
 # Install dependencies
