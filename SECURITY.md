@@ -16,7 +16,7 @@ The Stemly team takes security seriously. We appreciate your efforts to responsi
 
 Instead, please report them via email:
 
-- **Email**: [stemly.team@gmail.com](mailto:stemly.team@gmail.com)
+- **Email**: [mukkeshnihil@gmail.com](mailto:mukkeshnihil@gmail.com)
 - **Subject line**: `[SECURITY] <brief description>`
 
 ### What to Include
