@@ -9,8 +9,8 @@
 ## MEDIUM PRIORITY (Code Quality & Cleanup)
 - [ ] **Corrupted/Duplicate Configuration**: `stemly_app/pubspec.yaml` contains a large block of commented-out/duplicate YAML at the beginning.
   - *Action*: Clean up the file to only include the active configuration.
-- [ ] **Backup Files**: `stemly_app/lib/screens/scan_result_screen.dart.backup` should be removed from the repository.
-- [ ] **Unused Files**: `backend/test_output.txt` and `backend/test_image.png` appear to be artifacts from testing that should probably be ignored or removed.
+- [x] **Backup Files**: `stemly_app/lib/screens/scan_result_screen.dart.backup` should be removed from the repository.
+- [x] **Unused Files**: `backend/test_output.txt` and `backend/test_image.png` appear to be artifacts from testing that should probably be ignored or removed.
 
 ## LOW PRIORITY (Technical Debt)
 - [ ] **TODOs**:
